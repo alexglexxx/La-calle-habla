@@ -1,0 +1,70 @@
+# Stack tecnico inicial
+
+Fecha de decision: 2026-07-08
+
+## Decision
+
+La Calle Habla inicia con un stack minimo sin dependencias externas:
+
+- Node.js 20 o superior.
+- Servidor HTTP nativo de Node para correr localmente.
+- TypeScript como contrato de tipos de dominio.
+- Pruebas con `node --test`.
+- Scripts de validacion propios en `scripts/`.
+
+## Por que este stack
+
+El proyecto todavia esta validando modelo, flujo y decisiones de producto. Un stack sin framework reduce costo de arranque, evita dependencias tempranas y permite que futuras tasks elijan Next.js, base de datos, mapas o WhatsApp real con mejor informacion.
+
+La decision no bloquea migrar a un framework web. Solo establece una base ejecutable y verificable.
+
+## Scripts
+
+- `npm run dev`: levanta el servidor local en `127.0.0.1`.
+- `npm start`: levanta el servidor local en `127.0.0.1`.
+- `npm run lint`: valida estructura, documentos y contratos minimos.
+- `npm run build`: ejecuta chequeo de runtime y constantes base.
+- `npm test`: ejecuta pruebas con Node test runner.
+
+## Estructura inicial
+
+- `src/server/`: servidor local minimo.
+- `src/lib/`: constantes y logica compartida.
+- `src/data/`: seeds locales de categorias, estados y reportes.
+- `src/services/`: servicios internos de consulta y estadisticas.
+- `src/types/`: tipos de dominio en TypeScript.
+- `tests/`: pruebas de contratos.
+- `scripts/`: validaciones del proyecto.
+
+## Limites de la decision
+
+Esta task no implementa:
+
+- WhatsApp real.
+- Base de datos real.
+- Dashboard real.
+- Mapa.
+- Login.
+- IA.
+- Deploy.
+
+## Endpoints locales actuales
+
+- `GET /health`
+- `GET /api/categories`
+- `GET /api/statuses`
+- `GET /api/reports`
+- `GET /api/reports?id=REPORT_ID`
+- `GET /api/reports?category=CATEGORIA`
+- `GET /api/reports?status=STATUS`
+- `GET /api/stats`
+
+## Criterio para cambiar de stack
+
+Antes de migrar a Next.js u otro framework, debe existir una task con:
+
+- Necesidad concreta.
+- Impacto en el MVP.
+- Cambios de estructura propuestos.
+- Validaciones nuevas.
+- Auditoria en `docs/audits/`.

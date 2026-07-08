@@ -1,0 +1,17 @@
+{
+  "name": "la-calle-habla",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Plataforma ciudadana para reportar problemas urbanos por WhatsApp.",
+  "scripts": {
+    "dev": "node src/server/index.mjs",
+    "start": "node src/server/index.mjs",
+    "lint": "node scripts/validate-project.mjs",
+    "build": "node scripts/build-check.mjs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
