@@ -83,7 +83,7 @@ Resultado:
 - Pruebas de validacion, creacion, filtros, stats y payload grande.
 - Auditoria en `docs/audits/task-005-post-local-persistence.md`.
 
-## TASK 006 sugerida: Captura local o vista administrativa minima
+## TASK 006 completada: Captura local o vista administrativa minima
 
 Objetivo:
 
@@ -101,13 +101,21 @@ Impacto:
 
 - Alto. Valida el comportamiento ciudadano sin depender de WhatsApp real.
 
+Resultado:
+
+- Vista local en `GET /admin`.
+- Contadores rapidos.
+- Filtros por categoria, estado y prioridad.
+- Lista de reportes en cards.
+- Formulario funcional conectado a `POST /api/reports`.
+- Auditoria en `docs/audits/task-006-local-admin-view.md`.
+
 ## TASK 007 sugerida: Vista administrativa inicial
 
 Objetivo:
 
-- Listar reportes.
-- Filtrar por estado, categoria y fecha.
-- Ver detalle con evidencia y ubicacion.
+- Ver detalle de reporte.
+- Cambiar estado.
 - Cambiar estado y agregar nota interna.
 
 Validar:

@@ -6,6 +6,7 @@ import {
   listReports,
   listStatuses
 } from "../services/report-service.mjs";
+import { renderAdminPage } from "./admin-page.mjs";
 
 function json(statusCode, body) {
   return {
@@ -127,6 +128,7 @@ function landingPage() {
     <main>
       <h1>La Calle Habla</h1>
       <p>Modelo local operativo para reportes ciudadanos urbanos.</p>
+      <p>Panel local: <code>/admin</code></p>
       <p>Health check: <code>/health</code></p>
       <p>Reportes seed: <code>/api/reports</code></p>
       <p>Estadisticas: <code>/api/stats</code></p>
@@ -165,6 +167,17 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
     }
 
     return html(200, landingPage());
+  }
+
+  if (url.pathname === "/admin") {
+    if (method !== "GET" && method !== "HEAD") {
+      return json(405, {
+        ok: false,
+        error: "method_not_allowed"
+      });
+    }
+
+    return html(200, renderAdminPage());
   }
 
   if (url.pathname === "/api/categories") {

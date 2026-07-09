@@ -151,6 +151,34 @@ test("health route reports local data model status", () => {
   assert.equal(body.reports, seedReports.length);
 });
 
+test("admin route returns local HTML view", () => {
+  resetRuntimeReports();
+  const route = resolveRoute("GET", "/admin");
+  const headRoute = resolveRoute("HEAD", "/admin");
+
+  assert.equal(route.statusCode, 200);
+  assert.equal(headRoute.statusCode, 200);
+  assert.equal(route.headers["content-type"], "text/html; charset=utf-8");
+  assert.equal(route.body.includes("La Calle Habla"), true);
+  assert.equal(route.body.includes("Panel local de reportes ciudadanos"), true);
+  assert.equal(route.body.includes("No es un sistema oficial de gobierno"), true);
+  assert.equal(route.body.includes('id="report-form"'), true);
+  assert.equal(route.body.includes('fetchJson("/api/reports"'), true);
+});
+
+test("admin route does not break health or API routes", () => {
+  resetRuntimeReports();
+  const adminRoute = resolveRoute("GET", "/admin");
+  const healthRoute = resolveRoute("GET", "/health");
+  const reportsRoute = resolveRoute("GET", "/api/reports");
+  const statsRoute = resolveRoute("GET", "/api/stats");
+
+  assert.equal(adminRoute.statusCode, 200);
+  assert.equal(JSON.parse(healthRoute.body).ok, true);
+  assert.equal(JSON.parse(reportsRoute.body).count, seedReports.length);
+  assert.equal(JSON.parse(statsRoute.body).stats.totalReports, seedReports.length);
+});
+
 test("reports route returns all reports and report details", () => {
   resetRuntimeReports();
   const allReportsRoute = resolveRoute("GET", "/api/reports");

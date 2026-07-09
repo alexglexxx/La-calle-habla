@@ -20,7 +20,7 @@ El MVP debe validar:
 
 ## Estado actual
 
-Proyecto en etapa inicial con modelo operativo local, datos seed y captura local por POST.
+Proyecto en etapa inicial con modelo operativo local, datos seed, captura local por POST y panel administrativo local.
 
 Ya existe documentacion base en:
 
@@ -37,9 +37,9 @@ Stack inicial:
 - Pruebas con `node --test`.
 - Sin dependencias externas.
 
-Ya existen endpoints locales para categorias, estados, reportes, estadisticas y creacion local de reportes.
+Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes y vista administrativa local.
 
-Todavia no hay integracion real con WhatsApp ni dashboard administrativo.
+Todavia no hay integracion real con WhatsApp, login ni dashboard productivo.
 
 ## Comandos
 
@@ -53,6 +53,7 @@ npm test
 El servidor local expone:
 
 - `/`
+- `/admin`
 - `/health`
 - `/api/categories`
 - `/api/statuses`
@@ -81,6 +82,14 @@ curl -sS -X POST http://127.0.0.1:3001/api/reports \
 ```
 
 Los reportes creados localmente se guardan en `data/runtime/reports.json`, archivo ignorado por Git.
+
+Panel local:
+
+```text
+http://127.0.0.1:3001/admin
+```
+
+La vista permite filtrar reportes, revisar contadores y crear reportes locales desde navegador.
 
 ## Como continuar
 

@@ -29,6 +29,7 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 ## Estructura inicial
 
 - `src/server/`: servidor local minimo.
+- `src/server/admin-page.mjs`: vista administrativa local servida como HTML.
 - `src/lib/`: constantes y logica compartida.
 - `src/data/`: seeds locales de categorias, estados y reportes.
 - `src/services/`: servicios internos de consulta y estadisticas.
@@ -60,6 +61,13 @@ Esta task no implementa:
 - `GET /api/reports?status=STATUS`
 - `GET /api/stats`
 - `POST /api/reports`
+- `GET /admin`
+
+## Vista administrativa local
+
+`GET /admin` sirve HTML con CSS y JavaScript embebidos. La vista consume los endpoints locales existentes para cargar reportes, categorias, estados, estadisticas y crear reportes por `POST /api/reports`.
+
+No usa dependencias externas, CDN, fuentes remotas ni framework frontend.
 
 ## Persistencia local
 
