@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: Modelo operativo local con seeds
+Estado: POST local con persistencia minima
 
 ## Objetivo MVP
 
@@ -16,11 +16,12 @@ El MVP debe validar el flujo ciudadano y administrativo antes de integrar WhatsA
 
 ## Estado operativo actual
 
-El proyecto ya expone datos locales de lectura con seeds:
+El proyecto ya expone datos locales de lectura con seeds y permite crear reportes locales por POST:
 
 - Categorias.
 - Estados.
 - Reportes ciudadanos ficticios.
+- Reportes locales creados en desarrollo.
 - Estadisticas basicas.
 
 Endpoints disponibles:
@@ -33,6 +34,9 @@ Endpoints disponibles:
 - `GET /api/reports?category=CATEGORIA`
 - `GET /api/reports?status=STATUS`
 - `GET /api/stats`
+- `POST /api/reports`
+
+Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git.
 
 ## Stack inicial
 
@@ -49,14 +53,13 @@ La decision esta documentada en `docs/project/technical-stack.md`.
 
 ## Proxima task recomendada
 
-TASK 004: crear captura simulada de reportes con escritura local controlada, sin WhatsApp real y sin base de datos externa.
+TASK 006: crear una experiencia minima de captura o vista administrativa local sobre los endpoints existentes, sin WhatsApp real.
 
 ## Riesgos
 
-- Git no esta operativo en el directorio actual.
 - No hay framework web ni base de datos definidos.
 - TypeScript esta definido como contrato, pero aun no hay compilacion con `tsc`.
-- Los datos actuales son seeds en memoria; no hay persistencia real.
+- La persistencia local en JSON no es apta para concurrencia alta.
 - WhatsApp real puede agregar friccion legal, tecnica y de costos si se integra demasiado pronto.
 - Ubicacion, fotos y telefono pueden ser datos sensibles.
 - El producto puede malinterpretarse como sistema oficial de gobierno si el lenguaje no es cuidadoso.
@@ -70,4 +73,4 @@ TASK 004: crear captura simulada de reportes con escritura local controlada, sin
 - Politica de privacidad.
 - Criterios de anonimato.
 - Definicion exacta de roles administrativos.
-- Persistencia local o base de datos para reportes creados por usuarios.
+- Si el MVP continuara con JSON local o migrara a base de datos.

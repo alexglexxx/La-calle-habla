@@ -16,6 +16,7 @@ const requiredFiles = [
   "src/data/seed-reports.mjs",
   "src/types/domain.ts",
   "src/lib/domain-constants.mjs",
+  "src/services/runtime-report-store.mjs",
   "src/services/report-service.mjs",
   "src/server/routes.mjs",
   "src/server/index.mjs",

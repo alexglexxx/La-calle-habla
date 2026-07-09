@@ -46,10 +46,11 @@ node /home/alexglex/alex-legacy-engine/scripts/recall.mjs "La Calle Habla"
 - Cada task debe terminar con comandos de validacion si aplica.
 - No borrar archivos existentes sin instruccion explicita.
 - No sobrescribir documentacion previa sin respaldo o razon documentada.
+- No versionar datos runtime de ciudadanos o pruebas; `data/runtime/*.json` debe permanecer ignorado por Git.
 
 ## Alcance actual
 
-El proyecto tiene un esqueleto tecnico inicial con Node.js sin dependencias externas y contratos de dominio en TypeScript. Antes de implementar WhatsApp real, Firebase, dashboard, mapa, login, IA, deploy, pagos o automatizaciones externas, debe existir una decision documentada de alcance y una auditoria de task.
+El proyecto tiene Node.js sin dependencias externas, contratos de dominio en TypeScript, endpoints GET y `POST /api/reports` con persistencia local JSON. Antes de implementar WhatsApp real, Firebase, dashboard, mapa, login, IA, deploy, pagos o automatizaciones externas, debe existir una decision documentada de alcance y una auditoria de task.
 
 ## Validacion esperada
 

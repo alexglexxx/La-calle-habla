@@ -1,17 +1,51 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { Readable } from "node:stream";
 import test from "node:test";
 import { reportCategories, reportStatuses } from "../src/lib/domain-constants.mjs";
 import { seedReports } from "../src/data/seed-reports.mjs";
 import {
+  createReport,
   getReportById,
   getReportStats,
   listReports,
   listReportsByCategory,
-  listReportsByStatus
+  listReportsByStatus,
+  validateReportInput
 } from "../src/services/report-service.mjs";
+import { loadRuntimeReports, saveRuntimeReports } from "../src/services/runtime-report-store.mjs";
+import { readRequestBody } from "../src/server/index.mjs";
 import { resolveRoute } from "../src/server/routes.mjs";
 
+const tempDir = mkdtempSync(path.join(tmpdir(), "calle-habla-tests-"));
+process.env.LCH_RUNTIME_REPORTS_FILE = path.join(tempDir, "reports.json");
+
+test.after(() => {
+  rmSync(tempDir, { recursive: true, force: true });
+});
+
+function resetRuntimeReports(reports = []) {
+  saveRuntimeReports(reports);
+}
+
+function validReportInput(overrides = {}) {
+  return {
+    title: "Bache nuevo frente a tienda",
+    description: "Hay un bache profundo frente a la tienda y varios carros frenan de golpe para esquivarlo.",
+    category: "bache",
+    locationText: "Calle principal frente a tienda de abarrotes",
+    neighborhood: "Versalles",
+    priority: "high",
+    evidenceCount: 1,
+    citizenAlias: "Vecino prueba",
+    ...overrides
+  };
+}
+
 test("initial categories use citizen-facing labels", () => {
+  resetRuntimeReports();
   const categoryNames = reportCategories.map((category) => category.name);
 
   assert.ok(categoryNames.includes("Bache"));
@@ -25,6 +59,7 @@ test("initial categories use citizen-facing labels", () => {
 });
 
 test("statuses describe platform workflow without promising government resolution", () => {
+  resetRuntimeReports();
   const statusSlugs = reportStatuses.map((status) => status.slug);
   const allStatusText = reportStatuses
     .map((status) => `${status.name} ${status.description}`)
@@ -44,6 +79,7 @@ test("statuses describe platform workflow without promising government resolutio
 });
 
 test("seed reports exist and include required fields", () => {
+  resetRuntimeReports();
   const requiredFields = [
     "id",
     "title",
@@ -72,6 +108,7 @@ test("seed reports exist and include required fields", () => {
 });
 
 test("seed reports use known categories and statuses", () => {
+  resetRuntimeReports();
   const categorySlugs = new Set(reportCategories.map((category) => category.slug));
   const statusSlugs = new Set(reportStatuses.map((status) => status.slug));
 
@@ -82,6 +119,7 @@ test("seed reports use known categories and statuses", () => {
 });
 
 test("report service lists, filters and finds reports", () => {
+  resetRuntimeReports();
   assert.equal(listReports().length, seedReports.length);
   assert.equal(getReportById("report-pv-001")?.title.includes("Bache"), true);
   assert.equal(listReportsByCategory("bache").length, 1);
@@ -91,6 +129,7 @@ test("report service lists, filters and finds reports", () => {
 });
 
 test("report stats calculate totals and date range", () => {
+  resetRuntimeReports();
   const stats = getReportStats();
 
   assert.equal(stats.totalReports, seedReports.length);
@@ -102,16 +141,18 @@ test("report stats calculate totals and date range", () => {
 });
 
 test("health route reports local data model status", () => {
+  resetRuntimeReports();
   const route = resolveRoute("GET", "/health");
   const body = JSON.parse(route.body);
 
   assert.equal(route.statusCode, 200);
   assert.equal(body.ok, true);
-  assert.equal(body.status, "local-data-model");
+  assert.equal(body.status, "local-persistence");
   assert.equal(body.reports, seedReports.length);
 });
 
 test("reports route returns all reports and report details", () => {
+  resetRuntimeReports();
   const allReportsRoute = resolveRoute("GET", "/api/reports");
   const allReportsBody = JSON.parse(allReportsRoute.body);
   const detailRoute = resolveRoute("GET", "/api/reports?id=report-pv-004");
@@ -124,6 +165,7 @@ test("reports route returns all reports and report details", () => {
 });
 
 test("reports route filters by category and status", () => {
+  resetRuntimeReports();
   const categoryRoute = resolveRoute("GET", "/api/reports?category=alumbrado");
   const categoryBody = JSON.parse(categoryRoute.body);
   const statusRoute = resolveRoute("GET", "/api/reports?status=new");
@@ -135,6 +177,7 @@ test("reports route filters by category and status", () => {
 });
 
 test("stats route returns basic report statistics", () => {
+  resetRuntimeReports();
   const route = resolveRoute("GET", "/api/stats");
   const body = JSON.parse(route.body);
 
@@ -142,4 +185,120 @@ test("stats route returns basic report statistics", () => {
   assert.equal(body.ok, true);
   assert.equal(body.stats.totalReports, seedReports.length);
   assert.equal(body.stats.byStatus.validated, 4);
+});
+
+test("createReport creates a valid local report and persists it", () => {
+  resetRuntimeReports();
+  const result = createReport(validReportInput(), {
+    id: "report-local-test-001",
+    now: "2026-07-09T10:00:00.000Z"
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.report.id, "report-local-test-001");
+  assert.equal(result.report.status, "new");
+  assert.equal(result.report.source, "manual");
+  assert.equal(result.report.category, "bache");
+  assert.equal(loadRuntimeReports().length, 1);
+  assert.equal(listReports().length, seedReports.length + 1);
+  assert.equal(getReportById("report-local-test-001")?.title, "Bache nuevo frente a tienda");
+});
+
+test("created reports affect stats and filters", () => {
+  resetRuntimeReports();
+  createReport(validReportInput({ category: "Fuga de agua", priority: "urgent" }), {
+    id: "report-local-test-002",
+    now: "2026-07-09T11:00:00.000Z"
+  });
+
+  const stats = getReportStats();
+
+  assert.equal(stats.totalReports, seedReports.length + 1);
+  assert.equal(stats.byCategory["fuga-de-agua"], 2);
+  assert.equal(stats.byStatus.new, 4);
+  assert.equal(stats.byPriority.urgent, 3);
+  assert.equal(listReportsByCategory("fuga-de-agua").length, 2);
+  assert.equal(listReportsByStatus("new").length, 4);
+});
+
+test("validateReportInput rejects invalid input", () => {
+  resetRuntimeReports();
+  assert.equal(validateReportInput(validReportInput({ title: "" })).ok, false);
+  assert.equal(validateReportInput(validReportInput({ description: "Muy corto" })).ok, false);
+  assert.equal(validateReportInput(validReportInput({ category: "categoria-falsa" })).ok, false);
+  assert.equal(validateReportInput(validReportInput({ priority: "extreme" })).ok, false);
+  assert.equal(validateReportInput(validReportInput({ evidenceCount: 21 })).ok, false);
+  assert.equal(validateReportInput(validReportInput({ evidenceCount: 1.5 })).ok, false);
+});
+
+test("createReport rejects user-controlled generated fields", () => {
+  resetRuntimeReports();
+  const result = createReport(
+    validReportInput({
+      id: "report-forged",
+      status: "validated",
+      createdAt: "2020-01-01T00:00:00.000Z",
+      updatedAt: "2020-01-01T00:00:00.000Z"
+    })
+  );
+
+  assert.equal(result.ok, false);
+  assert.deepEqual(
+    result.errors.map((error) => error.field),
+    ["id", "status", "createdAt", "updatedAt"]
+  );
+});
+
+test("createReport keeps local source manual and rejects whatsapp source", () => {
+  resetRuntimeReports();
+  const result = createReport(validReportInput({ source: "whatsapp" }));
+
+  assert.equal(result.ok, false);
+  assert.equal(result.errors.some((error) => error.field === "source"), true);
+});
+
+test("POST /api/reports creates a report visible in GET routes", () => {
+  resetRuntimeReports();
+  const postRoute = resolveRoute("POST", "/api/reports", {
+    body: validReportInput({ category: "category-pothole" })
+  });
+  const postBody = JSON.parse(postRoute.body);
+  const allReportsRoute = resolveRoute("GET", "/api/reports");
+  const allReportsBody = JSON.parse(allReportsRoute.body);
+  const detailRoute = resolveRoute("GET", `/api/reports?id=${postBody.report.id}`);
+  const detailBody = JSON.parse(detailRoute.body);
+
+  assert.equal(postRoute.statusCode, 201);
+  assert.equal(postBody.ok, true);
+  assert.equal(postBody.report.status, "new");
+  assert.equal(postBody.report.source, "manual");
+  assert.equal(allReportsBody.count, seedReports.length + 1);
+  assert.equal(detailBody.report.id, postBody.report.id);
+});
+
+test("POST /api/reports rejects invalid JSON and validation failures", () => {
+  resetRuntimeReports();
+  const invalidJsonRoute = resolveRoute("POST", "/api/reports", {
+    rawBody: "{",
+    headers: {
+      "content-type": "application/json"
+    }
+  });
+  const validationRoute = resolveRoute("POST", "/api/reports", {
+    body: validReportInput({ category: "categoria-falsa" })
+  });
+
+  assert.equal(invalidJsonRoute.statusCode, 400);
+  assert.equal(JSON.parse(invalidJsonRoute.body).error, "invalid_json");
+  assert.equal(validationRoute.statusCode, 400);
+  assert.equal(JSON.parse(validationRoute.body).error, "validation_failed");
+});
+
+test("request body reader rejects payloads over the configured limit", async () => {
+  const request = Readable.from([Buffer.from("123456")]);
+  const result = await readRequestBody(request, 5);
+
+  assert.equal(result.ok, false);
+  assert.equal(result.route.statusCode, 413);
+  assert.equal(JSON.parse(result.route.body).error, "payload_too_large");
 });

@@ -20,7 +20,7 @@ El MVP debe validar:
 
 ## Estado actual
 
-Proyecto en etapa inicial con modelo operativo local y datos seed.
+Proyecto en etapa inicial con modelo operativo local, datos seed y captura local por POST.
 
 Ya existe documentacion base en:
 
@@ -37,9 +37,9 @@ Stack inicial:
 - Pruebas con `node --test`.
 - Sin dependencias externas.
 
-Ya existen endpoints locales de lectura para categorias, estados, reportes y estadisticas.
+Ya existen endpoints locales para categorias, estados, reportes, estadisticas y creacion local de reportes.
 
-Todavia no hay captura real de reportes, integracion real con WhatsApp ni dashboard administrativo.
+Todavia no hay integracion real con WhatsApp ni dashboard administrativo.
 
 ## Comandos
 
@@ -61,13 +61,33 @@ El servidor local expone:
 - `/api/reports?category=bache`
 - `/api/reports?status=validated`
 - `/api/stats`
+- `POST /api/reports`
+
+Crear reporte local:
+
+```bash
+curl -sS -X POST http://127.0.0.1:3001/api/reports \
+  -H 'Content-Type: application/json' \
+  --data '{
+    "title": "Bache nuevo frente a tienda",
+    "description": "Hay un bache profundo frente a la tienda y varios carros frenan de golpe para esquivarlo.",
+    "category": "bache",
+    "locationText": "Calle principal frente a tienda de abarrotes",
+    "neighborhood": "Versalles",
+    "priority": "high",
+    "evidenceCount": 1,
+    "citizenAlias": "Vecino prueba"
+  }'
+```
+
+Los reportes creados localmente se guardan en `data/runtime/reports.json`, archivo ignorado por Git.
 
 ## Como continuar
 
 1. Revisar `PROJECT_STATE.md`.
 2. Revisar los documentos en `docs/project/`.
 3. Revisar la decision tecnica en `docs/project/technical-stack.md`.
-4. Ejecutar la TASK 004 sugerida en `docs/roadmap/roadmap-mvp.md`.
+4. Ejecutar la siguiente task sugerida en `docs/roadmap/roadmap-mvp.md`.
 5. Mantener auditoria de cada task en `docs/audits/`.
 
 ## Advertencia

@@ -32,6 +32,7 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 - `src/lib/`: constantes y logica compartida.
 - `src/data/`: seeds locales de categorias, estados y reportes.
 - `src/services/`: servicios internos de consulta y estadisticas.
+- `data/runtime/`: persistencia local ignorada por Git para reportes creados en desarrollo.
 - `src/types/`: tipos de dominio en TypeScript.
 - `tests/`: pruebas de contratos.
 - `scripts/`: validaciones del proyecto.
@@ -58,6 +59,13 @@ Esta task no implementa:
 - `GET /api/reports?category=CATEGORIA`
 - `GET /api/reports?status=STATUS`
 - `GET /api/stats`
+- `POST /api/reports`
+
+## Persistencia local
+
+Los reportes creados por `POST /api/reports` se guardan en `data/runtime/reports.json`.
+
+El archivo runtime esta ignorado por Git porque puede contener datos variables de desarrollo. Las pruebas usan `LCH_RUNTIME_REPORTS_FILE` para aislar datos temporales.
 
 ## Criterio para cambiar de stack
 

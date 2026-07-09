@@ -56,7 +56,34 @@ Resultado:
 - Endpoints GET para categorias, estados, reportes y estadisticas.
 - Auditoria en `docs/audits/task-003-local-data-model.md`.
 
-## TASK 004 sugerida: Captura simulada de reportes
+## TASK 004 completada: Git baseline y remoto
+
+Resultado:
+
+- Git local inicializado.
+- Rama `main`.
+- Baseline commit creado.
+- Remote GitHub conectado y push inicial realizado.
+
+## TASK 005 completada: POST seguro y persistencia local minima
+
+Objetivo:
+
+- Crear `POST /api/reports`.
+- Validar payload ciudadano.
+- Persistir reportes locales en JSON ignorado por Git.
+- Mantener seeds intactos.
+- Reflejar reportes creados en `GET /api/reports` y `GET /api/stats`.
+
+Resultado:
+
+- `POST /api/reports` disponible.
+- Persistencia en `data/runtime/reports.json`.
+- Store runtime separado de seeds.
+- Pruebas de validacion, creacion, filtros, stats y payload grande.
+- Auditoria en `docs/audits/task-005-post-local-persistence.md`.
+
+## TASK 006 sugerida: Captura local o vista administrativa minima
 
 Objetivo:
 
@@ -74,7 +101,7 @@ Impacto:
 
 - Alto. Valida el comportamiento ciudadano sin depender de WhatsApp real.
 
-## TASK 005 sugerida: Vista administrativa inicial
+## TASK 007 sugerida: Vista administrativa inicial
 
 Objetivo:
 
