@@ -110,13 +110,13 @@ Resultado:
 - Formulario funcional conectado a `POST /api/reports`.
 - Auditoria en `docs/audits/task-006-local-admin-view.md`.
 
-## TASK 007 sugerida: Vista administrativa inicial
+## TASK 007 completada: Detalle y cambio de estado local
 
 Objetivo:
 
 - Ver detalle de reporte.
 - Cambiar estado.
-- Cambiar estado y agregar nota interna.
+- Guardar el cambio como seguimiento interno local.
 
 Validar:
 
@@ -127,6 +127,29 @@ Validar:
 Impacto:
 
 - Alto. Convierte datos en operacion util.
+
+Resultado:
+
+- Panel de detalle dentro de `GET /admin`.
+- Vista local `GET /admin/report?id=REPORT_ID`.
+- Boton de revision desde cards de `/admin`.
+- `PATCH /api/reports?id=REPORT_ID` para cambio de estado interno.
+- Persistencia de overrides en `data/runtime/report-overrides.json`.
+- Auditoria en `docs/audits/task-007-report-detail-status-update.md`.
+
+## TASK 008 sugerida: Historial local de cambios
+
+Objetivo:
+
+- Conservar historial de cambios de estado y notas por reporte.
+- Mostrar una linea de tiempo local.
+- Mantener separacion entre reporte ciudadano, validacion interna y resolucion oficial.
+
+Validar:
+
+- Que el historial persiste tras reinicio.
+- Que no se modifica el seed original.
+- Que la interfaz no comunica resolucion gubernamental.
 
 ## Fase posterior
 

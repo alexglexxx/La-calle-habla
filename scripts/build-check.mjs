@@ -1,7 +1,11 @@
 import http from "node:http";
 import { reportCategories, reportStatuses } from "../src/lib/domain-constants.mjs";
 import { seedReports } from "../src/data/seed-reports.mjs";
-import { getReportStats, validateReportInput } from "../src/services/report-service.mjs";
+import {
+  getReportStats,
+  validateReportInput,
+  validateReportStatusUpdate
+} from "../src/services/report-service.mjs";
 
 if (reportCategories.length < 5) {
   throw new Error("Expected initial citizen categories.");
@@ -21,6 +25,10 @@ if (getReportStats().totalReports < seedReports.length) {
 
 if (validateReportInput({}).ok) {
   throw new Error("Empty report input should not validate.");
+}
+
+if (validateReportStatusUpdate({ status: "validated" }).ok !== true) {
+  throw new Error("Valid report status update should validate.");
 }
 
 if (typeof http.createServer !== "function") {

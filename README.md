@@ -20,7 +20,7 @@ El MVP debe validar:
 
 ## Estado actual
 
-Proyecto en etapa inicial con modelo operativo local, datos seed, captura local por POST y panel administrativo local.
+Proyecto en etapa inicial con modelo operativo local, datos seed, captura local por POST, panel administrativo local y detalle de reportes.
 
 Ya existe documentacion base en:
 
@@ -37,7 +37,7 @@ Stack inicial:
 - Pruebas con `node --test`.
 - Sin dependencias externas.
 
-Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes y vista administrativa local.
+Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle y cambio de estado interno.
 
 Todavia no hay integracion real con WhatsApp, login ni dashboard productivo.
 
@@ -54,6 +54,7 @@ El servidor local expone:
 
 - `/`
 - `/admin`
+- `/admin/report?id=report-pv-001`
 - `/health`
 - `/api/categories`
 - `/api/statuses`
@@ -63,6 +64,7 @@ El servidor local expone:
 - `/api/reports?status=validated`
 - `/api/stats`
 - `POST /api/reports`
+- `PATCH /api/reports?id=REPORT_ID`
 
 Crear reporte local:
 
@@ -89,7 +91,19 @@ Panel local:
 http://127.0.0.1:3001/admin
 ```
 
-La vista permite filtrar reportes, revisar contadores y crear reportes locales desde navegador.
+La vista permite filtrar reportes, revisar contadores, seleccionar un reporte, ver su detalle, cambiar su estado interno y crear reportes locales desde navegador.
+
+El detalle local permite revisar un reporte y cambiar su estado interno. Estos cambios se guardan como overrides en `data/runtime/report-overrides.json`, archivo ignorado por Git.
+
+Cambiar estado interno:
+
+```bash
+curl -sS -X PATCH 'http://127.0.0.1:3001/api/reports?id=report-pv-001' \
+  -H 'Content-Type: application/json' \
+  --data '{"status":"in_review"}'
+```
+
+`PATCH /api/reports?id=REPORT_ID` solo acepta `status`. No permite editar titulo, categoria, ubicacion, origen, fechas, prioridad ni evidencias.
 
 ## Como continuar
 

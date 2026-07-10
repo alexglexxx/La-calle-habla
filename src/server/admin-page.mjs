@@ -170,6 +170,20 @@ export function renderAdminPage() {
         font-weight: 800;
       }
 
+      .detail-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 34px;
+        border-radius: 8px;
+        padding: 7px 10px;
+        background: #e6dfd3;
+        color: var(--ink);
+        font-size: 0.86rem;
+        font-weight: 800;
+        text-decoration: none;
+      }
+
       button:hover,
       button:focus {
         background: var(--accent-dark);
@@ -212,6 +226,11 @@ export function renderAdminPage() {
         border-radius: 8px;
         padding: 13px;
         background: #fffaf0;
+      }
+
+      .report-card.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(31, 111, 97, 0.12);
       }
 
       .report-head {
@@ -266,6 +285,53 @@ export function renderAdminPage() {
         gap: 5px;
         color: var(--muted);
         font-size: 0.9rem;
+      }
+
+      .detail-panel {
+        margin: 14px 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fffaf0;
+        padding: 13px;
+      }
+
+      .detail-panel[hidden] {
+        display: none;
+      }
+
+      .detail-header {
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+
+      .detail-title {
+        margin: 0;
+        font-size: 1.05rem;
+      }
+
+      .detail-warning {
+        margin: 10px 0;
+        color: #654009;
+        font-weight: 800;
+      }
+
+      .detail-fields {
+        display: grid;
+        gap: 7px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .detail-fields strong {
+        color: var(--ink);
+      }
+
+      .status-form {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
       }
 
       .empty {
@@ -345,6 +411,24 @@ export function renderAdminPage() {
               </select>
             </label>
           </div>
+          <div id="report-detail-panel" class="detail-panel" hidden>
+            <div class="detail-header">
+              <h3 id="detail-title" class="detail-title">Reporte seleccionado</h3>
+              <button id="close-detail" class="secondary" type="button">Cerrar detalle</button>
+            </div>
+            <p class="detail-warning">Este cambio solo actualiza el seguimiento interno local. No confirma resolución por autoridad.</p>
+            <div id="detail-fields" class="detail-fields"></div>
+            <form id="status-form" class="status-form">
+              <label>
+                Estado interno
+                <select id="status-select" name="status" required></select>
+              </label>
+              <div class="actions">
+                <button type="submit">Actualizar estado</button>
+              </div>
+              <p id="status-message" class="message" role="status"></p>
+            </form>
+          </div>
           <p id="list-message" class="message">Cargando reportes...</p>
           <div id="report-list" class="report-list"></div>
         </section>
@@ -410,7 +494,8 @@ export function renderAdminPage() {
         reports: [],
         categories: [],
         statuses: [],
-        stats: null
+        stats: null,
+        selectedReportId: null
       };
 
       const labels = {
@@ -470,6 +555,10 @@ export function renderAdminPage() {
         return state.categories.find((category) => category.slug === slug)?.name || slug;
       }
 
+      function statusName(slug) {
+        return state.statuses.find((status) => status.slug === slug)?.name || labels.status[slug] || slug;
+      }
+
       function formatDate(value) {
         if (!value) return "Sin fecha";
         return new Intl.DateTimeFormat("es-MX", {
@@ -489,6 +578,7 @@ export function renderAdminPage() {
         byId("filter-category").innerHTML = '<option value="">Todas</option>' + categoryOptions;
         byId("form-category").innerHTML = '<option value="">Selecciona categoria</option>' + categoryOptions;
         byId("filter-status").innerHTML = '<option value="">Todos</option>' + statusOptions;
+        byId("status-select").innerHTML = statusOptions;
       }
 
       function updateStats() {
@@ -531,7 +621,8 @@ export function renderAdminPage() {
 
         list.innerHTML = reports.map((report) => {
           const zone = report.neighborhood || report.zone || "Sin zona";
-          return '<article class="report-card">' +
+          const selectedClass = state.selectedReportId === report.id ? " selected" : "";
+          return '<article class="report-card' + selectedClass + '">' +
             '<div class="report-head">' +
               '<h3 class="report-title">' + escapeHtml(report.title) + '</h3>' +
               '<span class="chip priority-' + escapeHtml(report.priority) + '">' + escapeHtml(labels.priority[report.priority] || report.priority) + '</span>' +
@@ -546,9 +637,65 @@ export function renderAdminPage() {
               '<div><strong>Ubicacion:</strong> ' + escapeHtml(report.locationText) + '</div>' +
               '<div><strong>Fecha:</strong> ' + escapeHtml(formatDate(report.createdAt)) + '</div>' +
               '<div><strong>Evidencias:</strong> ' + escapeHtml(report.evidenceCount) + '</div>' +
+              '<div class="actions">' +
+                '<button class="secondary" type="button" data-report-id="' + escapeHtml(report.id) + '">Revisar</button>' +
+                '<a class="detail-link" href="/admin/report?id=' + encodeURIComponent(report.id) + '">Abrir página</a>' +
+              '</div>' +
             '</div>' +
           '</article>';
         }).join("");
+
+        for (const button of list.querySelectorAll("[data-report-id]")) {
+          button.addEventListener("click", () => selectReport(button.dataset.reportId));
+        }
+      }
+
+      function selectedReport() {
+        return state.reports.find((report) => report.id === state.selectedReportId) || null;
+      }
+
+      function renderDetail() {
+        const panel = byId("report-detail-panel");
+        const report = selectedReport();
+
+        if (!report) {
+          panel.hidden = true;
+          byId("status-message").textContent = "";
+          return;
+        }
+
+        panel.hidden = false;
+        byId("detail-title").textContent = report.title;
+        byId("status-select").value = report.status;
+        byId("detail-fields").innerHTML =
+          '<div><strong>Descripción:</strong> ' + escapeHtml(report.description) + '</div>' +
+          '<div><strong>Categoría:</strong> ' + escapeHtml(categoryName(report.category)) + '</div>' +
+          '<div><strong>Estado actual:</strong> ' + escapeHtml(statusName(report.status)) + '</div>' +
+          '<div><strong>Prioridad:</strong> ' + escapeHtml(labels.priority[report.priority] || report.priority) + '</div>' +
+          '<div><strong>Ubicación:</strong> ' + escapeHtml(report.locationText) + '</div>' +
+          '<div><strong>Colonia:</strong> ' + escapeHtml(report.neighborhood || "Sin colonia") + '</div>' +
+          '<div><strong>Zona:</strong> ' + escapeHtml(report.zone || "Sin zona") + '</div>' +
+          '<div><strong>Alias ciudadano:</strong> ' + escapeHtml(report.citizenAlias || "Ciudadano anonimo") + '</div>' +
+          '<div><strong>Evidencias:</strong> ' + escapeHtml(report.evidenceCount) + '</div>' +
+          '<div><strong>Origen:</strong> ' + escapeHtml(labels.source[report.source] || report.source) + '</div>' +
+          '<div><strong>Creado:</strong> ' + escapeHtml(formatDate(report.createdAt)) + '</div>' +
+          '<div><strong>Actualizado:</strong> ' + escapeHtml(formatDate(report.updatedAt)) + '</div>' +
+          '<div><strong>ID:</strong> ' + escapeHtml(report.id) + '</div>';
+      }
+
+      function selectReport(id) {
+        state.selectedReportId = id;
+        byId("status-message").className = "message";
+        byId("status-message").textContent = "";
+        renderReports();
+        renderDetail();
+        byId("report-detail-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      function closeDetail() {
+        state.selectedReportId = null;
+        renderReports();
+        renderDetail();
       }
 
       async function loadData() {
@@ -564,9 +711,14 @@ export function renderAdminPage() {
         state.reports = reports.reports || [];
         state.stats = stats.stats || {};
 
+        if (state.selectedReportId && !state.reports.some((report) => report.id === state.selectedReportId)) {
+          state.selectedReportId = null;
+        }
+
         fillSelects();
         updateStats();
         renderReports();
+        renderDetail();
       }
 
       function formPayload(form) {
@@ -616,11 +768,46 @@ export function renderAdminPage() {
         }
       }
 
+      async function submitStatus(event) {
+        event.preventDefault();
+        const report = selectedReport();
+        const message = byId("status-message");
+
+        if (!report) {
+          return;
+        }
+
+        message.className = "message";
+        message.textContent = "Actualizando estado...";
+
+        try {
+          const response = await fetchJson("/api/reports?id=" + encodeURIComponent(report.id), {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              status: byId("status-select").value
+            })
+          });
+
+          state.selectedReportId = response.report.id;
+          await loadData();
+          message.className = "message success";
+          message.textContent = "Estado actualizado para seguimiento interno local.";
+        } catch (error) {
+          message.className = "message error";
+          message.textContent = error.message || "No se pudo actualizar el estado.";
+        }
+      }
+
       for (const id of ["filter-category", "filter-status", "filter-priority"]) {
         byId(id).addEventListener("change", renderReports);
       }
 
       byId("report-form").addEventListener("submit", submitReport);
+      byId("status-form").addEventListener("submit", submitStatus);
+      byId("close-detail").addEventListener("click", closeDetail);
 
       loadData().catch(() => {
         byId("list-message").className = "message error";

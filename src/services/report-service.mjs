@@ -1,10 +1,16 @@
 import { seedCategories } from "../data/seed-categories.mjs";
 import { seedReports } from "../data/seed-reports.mjs";
 import { seedStatuses } from "../data/seed-statuses.mjs";
-import { loadRuntimeReports, saveRuntimeReports } from "./runtime-report-store.mjs";
+import {
+  loadReportOverrides,
+  loadRuntimeReports,
+  saveReportOverrides,
+  saveRuntimeReports
+} from "./runtime-report-store.mjs";
 
 const ALLOWED_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const FORBIDDEN_CREATE_FIELDS = ["id", "status", "createdAt", "updatedAt"];
+const ALLOWED_STATUS_UPDATE_FIELDS = new Set(["status"]);
 
 function normalize(value) {
   return String(value || "").trim().toLowerCase();
@@ -49,6 +55,10 @@ function matchesStatus(report, status) {
     .some((value) => normalize(value) === target);
 }
 
+function statusExists(status) {
+  return seedStatuses.some((item) => item.slug === status);
+}
+
 function countBy(items, key) {
   return items.reduce((accumulator, item) => {
     const value = item[key];
@@ -57,8 +67,35 @@ function countBy(items, key) {
   }, {});
 }
 
-function allReports() {
+function applyReportOverrides(reports) {
+  const overridesByReport = new Map();
+
+  for (const override of loadReportOverrides()) {
+    overridesByReport.set(override.reportId, override);
+  }
+
+  return reports.map((report) => {
+    const override = overridesByReport.get(report.id);
+
+    if (!override) {
+      return report;
+    }
+
+    return {
+      ...report,
+      status: override.status,
+      updatedAt: override.updatedAt,
+      adminStatusUpdatedAt: override.updatedAt
+    };
+  });
+}
+
+function rawReports() {
   return [...seedReports, ...loadRuntimeReports()];
+}
+
+function allReports() {
+  return applyReportOverrides(rawReports());
 }
 
 function nextReportId() {
@@ -202,6 +239,61 @@ export function validateReportInput(input) {
   };
 }
 
+export function validateStatusUpdateInput(input) {
+  const errors = [];
+
+  if (!input || typeof input !== "object" || Array.isArray(input)) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: "body",
+          message: "Request body must be a JSON object."
+        }
+      ]
+    };
+  }
+
+  for (const field of Object.keys(input)) {
+    if (!ALLOWED_STATUS_UPDATE_FIELDS.has(field)) {
+      errors.push({
+        field,
+        message: `${field} cannot be updated in this task. Only status is allowed.`
+      });
+    }
+  }
+
+  const status = cleanString(input.status);
+
+  if (!status) {
+    errors.push({
+      field: "status",
+      message: "status is required."
+    });
+  } else if (!statusExists(status)) {
+    errors.push({
+      field: "status",
+      message: "status must match an existing platform status."
+    });
+  }
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors
+    };
+  }
+
+  return {
+    ok: true,
+    value: {
+      status
+    }
+  };
+}
+
+export const validateReportStatusUpdate = validateStatusUpdateInput;
+
 export function listCategories() {
   return seedCategories;
 }
@@ -274,5 +366,38 @@ export function createReport(input, options = {}) {
   return {
     ok: true,
     report
+  };
+}
+
+export function updateReportStatus(id, input, options = {}) {
+  const existingReport = rawReports().find((report) => report.id === id);
+
+  if (!existingReport) {
+    return {
+      ok: false,
+      notFound: true,
+      id
+    };
+  }
+
+  const validation = validateStatusUpdateInput(input);
+
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const now = options.now || new Date().toISOString();
+  const overrides = loadReportOverrides().filter((override) => override.reportId !== id);
+  const override = {
+    reportId: id,
+    status: validation.value.status,
+    updatedAt: now
+  };
+
+  saveReportOverrides([...overrides, override]);
+
+  return {
+    ok: true,
+    report: getReportById(id)
   };
 }

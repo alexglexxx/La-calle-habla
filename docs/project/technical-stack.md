@@ -29,7 +29,8 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 ## Estructura inicial
 
 - `src/server/`: servidor local minimo.
-- `src/server/admin-page.mjs`: vista administrativa local servida como HTML.
+- `src/server/admin-page.mjs`: vista administrativa local servida como HTML, con detalle y cambio de estado.
+- `src/server/report-detail-page.mjs`: vista auxiliar de detalle y cambio de estado.
 - `src/lib/`: constantes y logica compartida.
 - `src/data/`: seeds locales de categorias, estados y reportes.
 - `src/services/`: servicios internos de consulta y estadisticas.
@@ -62,18 +63,26 @@ Esta task no implementa:
 - `GET /api/stats`
 - `POST /api/reports`
 - `GET /admin`
+- `GET /admin/report?id=REPORT_ID`
+- `PATCH /api/reports?id=REPORT_ID`
 
 ## Vista administrativa local
 
-`GET /admin` sirve HTML con CSS y JavaScript embebidos. La vista consume los endpoints locales existentes para cargar reportes, categorias, estados, estadisticas y crear reportes por `POST /api/reports`.
+`GET /admin` sirve HTML con CSS y JavaScript embebidos. La vista consume los endpoints locales existentes para cargar reportes, categorias, estados, estadisticas, revisar detalle, cambiar estado interno por `PATCH /api/reports?id=REPORT_ID` y crear reportes por `POST /api/reports`.
 
 No usa dependencias externas, CDN, fuentes remotas ni framework frontend.
+
+## Cambios de estado locales
+
+`PATCH /api/reports?id=REPORT_ID` permite cambiar solo el estado interno de un reporte. Los cambios se guardan como overrides en `data/runtime/report-overrides.json` para no modificar seeds ni datos base.
 
 ## Persistencia local
 
 Los reportes creados por `POST /api/reports` se guardan en `data/runtime/reports.json`.
 
-El archivo runtime esta ignorado por Git porque puede contener datos variables de desarrollo. Las pruebas usan `LCH_RUNTIME_REPORTS_FILE` para aislar datos temporales.
+Los overrides de estado se guardan en `data/runtime/report-overrides.json`.
+
+Los archivos runtime estan ignorados por Git porque pueden contener datos variables de desarrollo. Las pruebas usan `LCH_RUNTIME_REPORTS_FILE` y `LCH_REPORT_OVERRIDES_FILE` para aislar datos temporales.
 
 ## Criterio para cambiar de stack
 

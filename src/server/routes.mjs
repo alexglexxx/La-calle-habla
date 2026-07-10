@@ -4,9 +4,11 @@ import {
   getReportStats,
   listCategories,
   listReports,
-  listStatuses
+  listStatuses,
+  updateReportStatus
 } from "../services/report-service.mjs";
 import { renderAdminPage } from "./admin-page.mjs";
+import { renderReportDetailPage } from "./report-detail-page.mjs";
 
 function json(statusCode, body) {
   return {
@@ -50,7 +52,7 @@ function parseJsonBody(routeOptions) {
       response: json(400, {
         ok: false,
         error: "empty_body",
-        message: "POST /api/reports requires a JSON body."
+        message: "Request requires a JSON body."
       })
     };
   }
@@ -61,7 +63,7 @@ function parseJsonBody(routeOptions) {
       response: json(400, {
         ok: false,
         error: "expected_json",
-        message: "POST /api/reports expects JSON."
+        message: "Request expects JSON."
       })
     };
   }
@@ -180,6 +182,17 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
     return html(200, renderAdminPage());
   }
 
+  if (url.pathname === "/admin/report") {
+    if (method !== "GET" && method !== "HEAD") {
+      return json(405, {
+        ok: false,
+        error: "method_not_allowed"
+      });
+    }
+
+    return html(200, renderReportDetailPage());
+  }
+
   if (url.pathname === "/api/categories") {
     if (method !== "GET") {
       return json(405, {
@@ -209,6 +222,8 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
   }
 
   if (url.pathname === "/api/reports") {
+    const id = url.searchParams.get("id");
+
     if (method === "POST") {
       const parsedBody = parseJsonBody(routeOptions);
 
@@ -240,6 +255,53 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
       }
     }
 
+    if (method === "PATCH") {
+      if (!id) {
+        return json(400, {
+          ok: false,
+          error: "missing_report_id",
+          message: "PATCH /api/reports requires an id query parameter."
+        });
+      }
+
+      const parsedBody = parseJsonBody(routeOptions);
+
+      if (!parsedBody.ok) {
+        return parsedBody.response;
+      }
+
+      try {
+        const result = updateReportStatus(id, parsedBody.body);
+
+        if (result.notFound) {
+          return json(404, {
+            ok: false,
+            error: "report_not_found",
+            id
+          });
+        }
+
+        if (!result.ok) {
+          return json(400, {
+            ok: false,
+            error: "validation_failed",
+            errors: result.errors
+          });
+        }
+
+        return json(200, {
+          ok: true,
+          report: result.report
+        });
+      } catch (error) {
+        return json(500, {
+          ok: false,
+          error: "runtime_update_failed",
+          message: error instanceof Error ? error.message : "Unexpected status update error."
+        });
+      }
+    }
+
     if (method !== "GET") {
       return json(405, {
         ok: false,
@@ -247,7 +309,6 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
       });
     }
 
-    const id = url.searchParams.get("id");
     const category = url.searchParams.get("category");
     const status = url.searchParams.get("status");
 

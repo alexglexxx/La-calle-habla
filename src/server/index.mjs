@@ -74,7 +74,7 @@ export async function handleRequest(request) {
   const method = request.method || "GET";
   const requestUrl = request.url || "/";
 
-  if (method === "POST") {
+  if (method === "POST" || method === "PATCH") {
     const bodyResult = await readRequestBody(request);
 
     if (!bodyResult.ok) {

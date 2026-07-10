@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: Vista administrativa local minima
+Estado: Detalle y cambio de estado local
 
 ## Objetivo MVP
 
@@ -16,7 +16,7 @@ El MVP debe validar el flujo ciudadano y administrativo antes de integrar WhatsA
 
 ## Estado operativo actual
 
-El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST y tiene una vista administrativa local:
+El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local y permite cambiar estado interno:
 
 - Categorias.
 - Estados.
@@ -24,6 +24,8 @@ El proyecto ya expone datos locales de lectura con seeds, permite crear reportes
 - Reportes locales creados en desarrollo.
 - Estadisticas basicas.
 - Panel local en `/admin`.
+- Detalle local dentro de `/admin` y ruta auxiliar `/admin/report?id=REPORT_ID`.
+- Cambios de estado internos con `PATCH /api/reports?id=REPORT_ID`.
 
 Endpoints disponibles:
 
@@ -37,8 +39,10 @@ Endpoints disponibles:
 - `GET /api/stats`
 - `POST /api/reports`
 - `GET /admin`
+- `GET /admin/report?id=REPORT_ID`
+- `PATCH /api/reports?id=REPORT_ID`
 
-Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git.
+Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, tambien ignorado por Git.
 
 ## Stack inicial
 
@@ -55,7 +59,7 @@ La decision esta documentada en `docs/project/technical-stack.md`.
 
 ## Proxima task recomendada
 
-TASK 007: agregar vista de detalle y cambio de estado administrativo local, sin login todavia y sin integraciones externas.
+TASK 008: agregar historial local de cambios por reporte, sin login todavia y sin integraciones externas.
 
 ## Riesgos
 
@@ -63,6 +67,7 @@ TASK 007: agregar vista de detalle y cambio de estado administrativo local, sin 
 - TypeScript esta definido como contrato, pero aun no hay compilacion con `tsc`.
 - La persistencia local en JSON no es apta para concurrencia alta.
 - La vista `/admin` no tiene login y debe mantenerse local.
+- Los cambios de estado son internos de la plataforma y no implican resolucion oficial.
 - WhatsApp real puede agregar friccion legal, tecnica y de costos si se integra demasiado pronto.
 - Ubicacion, fotos y telefono pueden ser datos sensibles.
 - El producto puede malinterpretarse como sistema oficial de gobierno si el lenguaje no es cuidadoso.
@@ -78,3 +83,4 @@ TASK 007: agregar vista de detalle y cambio de estado administrativo local, sin 
 - Definicion exacta de roles administrativos.
 - Si el MVP continuara con JSON local o migrara a base de datos.
 - Si la administracion local requiere proteccion antes de exponerse fuera de localhost.
+- Si los cambios de estado deben conservar historial completo o solo ultimo override.
