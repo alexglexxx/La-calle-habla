@@ -33,6 +33,7 @@ export function renderReportDetailPage() {
       }
 
       button,
+      textarea,
       select {
         font: inherit;
       }
@@ -137,6 +138,17 @@ export function renderReportDetailPage() {
         padding: 10px 11px;
       }
 
+      textarea {
+        width: 100%;
+        min-height: 120px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--ink);
+        padding: 10px 11px;
+        resize: vertical;
+      }
+
       button {
         border: 0;
         border-radius: 8px;
@@ -153,6 +165,11 @@ export function renderReportDetailPage() {
         background: var(--accent-dark);
       }
 
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.62;
+      }
+
       .message {
         min-height: 24px;
         color: var(--muted);
@@ -166,6 +183,57 @@ export function renderReportDetailPage() {
       .message.error {
         color: var(--danger);
         font-weight: 800;
+      }
+
+      .history-warning,
+      .help {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .field-message {
+        min-height: 20px;
+        margin: 0;
+        color: var(--danger);
+        font-size: 0.88rem;
+        font-weight: 800;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 10px;
+      }
+
+      .timeline-item {
+        display: grid;
+        gap: 5px;
+        border-left: 4px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        background: #fffdf8;
+        padding: 10px 11px;
+      }
+
+      .timeline-item.note {
+        border-left-color: #9f4f1b;
+      }
+
+      .timeline-type {
+        color: var(--ink);
+        font-weight: 800;
+      }
+
+      .timeline-meta,
+      .timeline-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      .empty {
+        border: 1px dashed var(--line);
+        border-radius: 8px;
+        padding: 20px;
+        color: var(--muted);
+        text-align: center;
       }
 
       @media (min-width: 820px) {
@@ -200,9 +268,30 @@ export function renderReportDetailPage() {
               Estado interno
               <select id="status-select" name="status"></select>
             </label>
-            <button type="submit" style="margin-top: 12px;">Actualizar estado</button>
+            <button id="status-submit" type="submit" style="margin-top: 12px;">Actualizar estado</button>
             <p id="status-message" class="message" role="status"></p>
           </form>
+        </section>
+
+        <section>
+          <h2>Nota interna</h2>
+          <form id="note-form">
+            <label>
+              Seguimiento interno
+              <textarea id="note-text" name="note" maxlength="500" placeholder="Agrega una nota de seguimiento interno. No es una respuesta oficial."></textarea>
+            </label>
+            <p id="note-counter" class="help">0 de 500 caracteres</p>
+            <p id="note-field-message" class="field-message" aria-live="polite"></p>
+            <button id="note-submit" type="submit">Agregar nota</button>
+            <p id="note-message" class="message" role="status"></p>
+          </form>
+        </section>
+
+        <section>
+          <h2>Historial interno</h2>
+          <p class="history-warning">Este historial corresponde al seguimiento interno de La Calle Habla y no representa una resolución oficial.</p>
+          <p id="history-message" class="message" role="status">Cargando historial...</p>
+          <div id="history-list" class="timeline"></div>
         </section>
       </div>
     </main>
@@ -232,6 +321,8 @@ export function renderReportDetailPage() {
       let report = null;
       let categories = [];
       let statuses = [];
+      let history = [];
+      let historyLoading = false;
 
       function text(value) {
         return String(value ?? "");
@@ -268,6 +359,10 @@ export function renderReportDetailPage() {
         return categories.find((category) => category.slug === slug)?.name || slug;
       }
 
+      function statusName(slug) {
+        return statuses.find((status) => status.slug === slug)?.name || labels.status[slug] || slug;
+      }
+
       function formatDate(value) {
         if (!value) return "Sin fecha";
         return new Intl.DateTimeFormat("es-MX", {
@@ -286,7 +381,7 @@ export function renderReportDetailPage() {
         byId("report-meta").innerHTML =
           '<div><strong>Descripcion:</strong> ' + escapeHtml(report.description) + '</div>' +
           '<div><strong>Categoria:</strong> ' + escapeHtml(categoryName(report.category)) + '</div>' +
-          '<div><strong>Estado actual:</strong> ' + escapeHtml(labels.status[report.status] || report.status) + '</div>' +
+          '<div><strong>Estado actual:</strong> ' + escapeHtml(statusName(report.status)) + '</div>' +
           '<div><strong>Prioridad:</strong> ' + escapeHtml(labels.priority[report.priority] || report.priority) + '</div>' +
           '<div><strong>Ubicacion:</strong> ' + escapeHtml(report.locationText) + '</div>' +
           '<div><strong>Colonia:</strong> ' + escapeHtml(report.neighborhood || "Sin colonia") + '</div>' +
@@ -298,6 +393,59 @@ export function renderReportDetailPage() {
           '<div><strong>Ultima actualizacion:</strong> ' + escapeHtml(formatDate(report.updatedAt)) + '</div>' +
           '<div><strong>ID:</strong> ' + escapeHtml(report.id) + '</div>';
         byId("status-select").value = report.status;
+      }
+
+      function renderHistory() {
+        const message = byId("history-message");
+        const list = byId("history-list");
+
+        if (historyLoading) {
+          message.className = "message";
+          message.textContent = "Cargando historial...";
+          list.innerHTML = "";
+          return;
+        }
+
+        if (history.length === 0) {
+          message.className = "message";
+          message.textContent = "Este reporte todavía no tiene seguimiento interno registrado.";
+          list.innerHTML = '<div class="empty">Sin historial interno por ahora.</div>';
+          return;
+        }
+
+        message.className = "message";
+        message.textContent = history.length + " eventos registrados";
+        list.innerHTML = history.map((event) => {
+          const isNote = event.type === "internal_note";
+          const typeLabel = isNote ? "Nota interna" : "Cambio de estado interno";
+          const transition = isNote
+            ? ""
+            : '<div class="timeline-meta"><strong>Estado interno:</strong> ' +
+              escapeHtml(statusName(event.previousStatus)) + " a " + escapeHtml(statusName(event.newStatus)) +
+              '</div>';
+          const note = event.note
+            ? '<div class="timeline-note"><strong>Nota:</strong> ' + escapeHtml(event.note) + '</div>'
+            : "";
+
+          return '<article class="timeline-item ' + (isNote ? "note" : "status") + '">' +
+            '<div class="timeline-type">' + escapeHtml(typeLabel) + '</div>' +
+            '<div class="timeline-meta"><time datetime="' + escapeHtml(event.createdAt) + '">' +
+              escapeHtml(formatDate(event.createdAt)) + '</time> · Origen local: ' + escapeHtml(event.actor) + '</div>' +
+            transition +
+            note +
+          '</article>';
+        }).join("");
+      }
+
+      async function loadHistory() {
+        historyLoading = true;
+        history = [];
+        renderHistory();
+
+        const response = await fetchJson("/api/report-history?id=" + encodeURIComponent(report.id));
+        history = response.events || [];
+        historyLoading = false;
+        renderHistory();
       }
 
       function fillStatuses() {
@@ -324,13 +472,16 @@ export function renderReportDetailPage() {
         report = reportResponse.report;
         fillStatuses();
         renderReport();
+        await loadHistory();
       }
 
       async function submitStatus(event) {
         event.preventDefault();
         const message = byId("status-message");
+        const button = byId("status-submit");
         message.className = "message";
         message.textContent = "Guardando seguimiento...";
+        button.disabled = true;
 
         try {
           const response = await fetchJson("/api/reports?id=" + encodeURIComponent(report.id), {
@@ -345,18 +496,82 @@ export function renderReportDetailPage() {
 
           report = response.report;
           renderReport();
+          await loadHistory();
           message.className = "message success";
-          message.textContent = "Estado guardado para seguimiento interno.";
+          message.textContent = response.noop
+            ? "El estado interno ya era ese. No se agrego historial sin nota."
+            : "Estado guardado para seguimiento interno.";
         } catch (error) {
           message.className = "message error";
           message.textContent = error.message || "No se pudo guardar el estado.";
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function updateNoteCounter() {
+        const value = byId("note-text").value;
+        byId("note-counter").textContent = value.length + " de 500 caracteres";
+      }
+
+      async function submitNote(event) {
+        event.preventDefault();
+        const note = byId("note-text").value.trim();
+        const message = byId("note-message");
+        const fieldMessage = byId("note-field-message");
+        const button = byId("note-submit");
+
+        fieldMessage.textContent = "";
+        message.className = "message";
+
+        if (!note) {
+          fieldMessage.textContent = "La nota interna no puede estar vacia.";
+          message.textContent = "";
+          return;
+        }
+
+        if (note.length > 500) {
+          fieldMessage.textContent = "La nota interna debe tener 500 caracteres o menos.";
+          message.textContent = "";
+          return;
+        }
+
+        button.disabled = true;
+        message.textContent = "Guardando nota interna...";
+
+        try {
+          const response = await fetchJson("/api/reports?id=" + encodeURIComponent(report.id), {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              note
+            })
+          });
+
+          report = response.report;
+          await loadHistory();
+          byId("note-text").value = "";
+          updateNoteCounter();
+          message.className = "message success";
+          message.textContent = "Nota interna agregada al historial.";
+        } catch (error) {
+          message.className = "message error";
+          message.textContent = error.message || "No se pudo guardar la nota interna.";
+        } finally {
+          button.disabled = false;
         }
       }
 
       byId("status-form").addEventListener("submit", submitStatus);
+      byId("note-form").addEventListener("submit", submitNote);
+      byId("note-text").addEventListener("input", updateNoteCounter);
       loadReport().catch((error) => {
         byId("report-title").textContent = "No se pudo cargar el reporte";
         byId("report-meta").innerHTML = '<div>' + escapeHtml(error.message) + '</div>';
+        byId("history-message").className = "message error";
+        byId("history-message").textContent = "No se pudo cargar el historial.";
       });
     </script>
   </body>

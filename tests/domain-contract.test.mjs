@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -10,6 +10,8 @@ import {
   createReport,
   getReportById,
   getReportStats,
+  INTERNAL_NOTE_MAX_LENGTH,
+  listReportHistory,
   listReports,
   listReportsByCategory,
   listReportsByStatus,
@@ -19,8 +21,10 @@ import {
   validateReportStatusUpdate
 } from "../src/services/report-service.mjs";
 import {
+  loadReportHistory,
   loadReportOverrides,
   loadRuntimeReports,
+  saveReportHistory,
   saveReportOverrides,
   saveRuntimeReports
 } from "../src/services/runtime-report-store.mjs";
@@ -30,6 +34,7 @@ import { resolveRoute } from "../src/server/routes.mjs";
 const tempDir = mkdtempSync(path.join(tmpdir(), "calle-habla-tests-"));
 process.env.LCH_RUNTIME_REPORTS_FILE = path.join(tempDir, "reports.json");
 process.env.LCH_REPORT_OVERRIDES_FILE = path.join(tempDir, "report-overrides.json");
+process.env.LCH_REPORT_HISTORY_FILE = path.join(tempDir, "report-history.json");
 
 test.after(() => {
   rmSync(tempDir, { recursive: true, force: true });
@@ -38,6 +43,7 @@ test.after(() => {
 function resetRuntimeReports(reports = []) {
   saveRuntimeReports(reports);
   saveReportOverrides([]);
+  saveReportHistory([]);
 }
 
 function validReportInput(overrides = {}) {
@@ -177,8 +183,20 @@ test("admin route returns local HTML view", () => {
   assert.equal(route.body.includes('id="status-select"'), true);
   assert.equal(route.body.includes("Actualizar estado"), true);
   assert.equal(route.body.includes("Este cambio solo actualiza el seguimiento interno local"), true);
+  assert.equal(route.body.includes("Historial interno"), true);
+  assert.equal(
+    route.body.includes(
+      "Este historial corresponde al seguimiento interno de La Calle Habla y no representa una resolución oficial."
+    ),
+    true
+  );
+  assert.equal(route.body.includes('id="note-form"'), true);
+  assert.equal(route.body.includes('id="note-text"'), true);
+  assert.equal(route.body.includes("Sin historial interno por ahora."), true);
+  assert.equal(route.body.includes("escapeHtml(event.note)"), true);
   assert.equal(route.body.includes("function selectReport"), true);
   assert.equal(route.body.includes('fetchJson("/api/reports"'), true);
+  assert.equal(route.body.includes('fetchJson("/api/report-history?id="'), true);
   assert.equal(route.body.includes('method: "PATCH"'), true);
 });
 
@@ -193,6 +211,10 @@ test("report detail route returns local HTML view", () => {
   assert.equal(route.body.includes("Detalle local de reporte ciudadano"), true);
   assert.equal(route.body.includes("Seguimiento administrativo local"), true);
   assert.equal(route.body.includes('id="status-form"'), true);
+  assert.equal(route.body.includes('id="note-form"'), true);
+  assert.equal(route.body.includes("Historial interno"), true);
+  assert.equal(route.body.includes("Sin historial interno por ahora."), true);
+  assert.equal(route.body.includes("escapeHtml(event.note)"), true);
   assert.equal(route.body.includes('method: "PATCH"'), true);
   assert.equal(route.body.includes("Este cambio solo actualiza el seguimiento interno local"), true);
   assert.equal(route.body.includes("No es un sistema oficial de gobierno"), true);
@@ -240,9 +262,16 @@ test("updateReportStatus persists local status override for seed reports without
   const stats = getReportStats();
 
   assert.equal(result.ok, true);
+  assert.equal(result.changed, true);
+  assert.equal(result.historyEvent.type, "status_change");
+  assert.equal(result.historyEvent.reportId, "report-pv-001");
+  assert.equal(result.historyEvent.previousStatus, "validated");
+  assert.equal(result.historyEvent.newStatus, "in_review");
+  assert.equal(result.historyEvent.createdAt, "2026-07-09T12:00:00.000Z");
   assert.equal(updated.status, "in_review");
   assert.equal(updated.updatedAt, "2026-07-09T12:00:00.000Z");
   assert.equal(loadReportOverrides().length, 1);
+  assert.equal(loadReportHistory().length, 1);
   assert.equal(seedBefore.status, "validated");
   assert.equal(seedBefore.updatedAt, "2026-07-02T18:10:00.000Z");
   assert.equal(stats.byStatus.validated, 3);
@@ -274,6 +303,144 @@ test("updateReportStatus persists local status override for runtime reports", ()
   assert.equal(updated.source, "manual");
 });
 
+test("internal notes can be added without changing status", () => {
+  resetRuntimeReports();
+  const result = updateReportStatus(
+    "report-pv-001",
+    {
+      note: "Se reviso evidencia local sin cambiar el estado."
+    },
+    {
+      now: "2026-07-10T08:00:00.000Z",
+      eventId: "history-test-note-001"
+    }
+  );
+  const event = loadReportHistory()[0];
+
+  assert.equal(result.ok, true);
+  assert.equal(result.changed, false);
+  assert.equal(result.historyEvent.type, "internal_note");
+  assert.equal(result.report.status, "validated");
+  assert.equal(loadReportOverrides().length, 0);
+  assert.deepEqual(event, {
+    id: "history-test-note-001",
+    reportId: "report-pv-001",
+    type: "internal_note",
+    createdAt: "2026-07-10T08:00:00.000Z",
+    actor: "local_admin",
+    note: "Se reviso evidencia local sin cambiar el estado."
+  });
+});
+
+test("same status without note does not create misleading history", () => {
+  resetRuntimeReports();
+  const result = updateReportStatus(
+    "report-pv-001",
+    {
+      status: "validated"
+    },
+    {
+      now: "2026-07-10T08:30:00.000Z"
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.noop, true);
+  assert.equal(result.changed, false);
+  assert.equal(result.historyEvent, null);
+  assert.equal(loadReportHistory().length, 0);
+  assert.equal(loadReportOverrides().length, 0);
+});
+
+test("same status with note records internal note instead of fake status change", () => {
+  resetRuntimeReports();
+  const result = updateReportStatus(
+    "report-pv-001",
+    {
+      status: "validated",
+      note: "Se conserva el estado por ahora."
+    },
+    {
+      now: "2026-07-10T09:00:00.000Z"
+    }
+  );
+  const event = loadReportHistory()[0];
+
+  assert.equal(result.ok, true);
+  assert.equal(result.changed, false);
+  assert.equal(event.type, "internal_note");
+  assert.equal(event.note, "Se conserva el estado por ahora.");
+  assert.equal(event.previousStatus, undefined);
+  assert.equal(event.newStatus, undefined);
+  assert.equal(loadReportOverrides().length, 0);
+});
+
+test("status change with note stores note on status_change event", () => {
+  resetRuntimeReports();
+  const result = updateReportStatus(
+    "report-pv-001",
+    {
+      status: "needs_info",
+      note: "Falta una referencia mas clara."
+    },
+    {
+      now: "2026-07-10T09:30:00.000Z"
+    }
+  );
+  const event = loadReportHistory()[0];
+
+  assert.equal(result.ok, true);
+  assert.equal(event.type, "status_change");
+  assert.equal(event.previousStatus, "validated");
+  assert.equal(event.newStatus, "needs_info");
+  assert.equal(event.note, "Falta una referencia mas clara.");
+});
+
+test("history remains independent per report and returns deterministic order", () => {
+  resetRuntimeReports();
+  updateReportStatus("report-pv-001", { note: "Nota dos" }, {
+    now: "2026-07-10T11:00:00.000Z",
+    eventId: "history-b"
+  });
+  updateReportStatus("report-pv-002", { note: "Otra nota" }, {
+    now: "2026-07-10T10:30:00.000Z",
+    eventId: "history-other"
+  });
+  updateReportStatus("report-pv-001", { status: "in_review" }, {
+    now: "2026-07-10T10:00:00.000Z",
+    eventId: "history-a"
+  });
+
+  const events = listReportHistory("report-pv-001");
+
+  assert.deepEqual(
+    events.map((event) => event.id),
+    ["history-a", "history-b"]
+  );
+  assert.equal(events.every((event) => event.reportId === "report-pv-001"), true);
+});
+
+test("history persists after service reads storage again", () => {
+  resetRuntimeReports();
+  updateReportStatus("report-pv-001", { note: "Nota persistente" }, {
+    now: "2026-07-10T12:00:00.000Z",
+    eventId: "history-persisted"
+  });
+
+  assert.equal(loadReportHistory().length, 1);
+  assert.equal(listReportHistory("report-pv-001")[0].id, "history-persisted");
+});
+
+test("invalid status and missing report do not create history", () => {
+  resetRuntimeReports();
+  const invalidStatus = updateReportStatus("report-pv-001", { status: "officially_resolved" });
+  const missingReport = updateReportStatus("missing-report", { note: "No debe guardarse" });
+
+  assert.equal(invalidStatus.ok, false);
+  assert.equal(missingReport.notFound, true);
+  assert.equal(loadReportHistory().length, 0);
+});
+
 test("validateStatusUpdateInput rejects invalid status and non-status fields", () => {
   resetRuntimeReports();
   const forbiddenFields = [
@@ -290,6 +457,12 @@ test("validateStatusUpdateInput rejects invalid status and non-status fields", (
   ];
 
   assert.equal(validateStatusUpdateInput({ status: "validated" }).ok, true);
+  assert.equal(validateStatusUpdateInput({ note: "Seguimiento interno" }).ok, true);
+  assert.equal(validateStatusUpdateInput({}).ok, false);
+  assert.equal(validateStatusUpdateInput({ note: "   " }).ok, false);
+  assert.equal(validateStatusUpdateInput({ note: "x".repeat(INTERNAL_NOTE_MAX_LENGTH + 1) }).ok, false);
+  assert.equal(validateStatusUpdateInput({ note: ["texto"] }).ok, false);
+  assert.equal(validateStatusUpdateInput({ status: 12 }).ok, false);
   assert.equal(validateReportStatusUpdate({ status: "validated" }).ok, true);
   assert.equal(validateReportStatusUpdate({ status: "officially_resolved" }).ok, false);
 
@@ -315,10 +488,71 @@ test("PATCH /api/reports updates seed status and GET routes reflect overrides", 
 
   assert.equal(patchRoute.statusCode, 200);
   assert.equal(patchBody.report.status, "validated");
+  assert.equal(patchBody.historyEvent.type, "status_change");
+  assert.equal(patchBody.historyEvent.previousStatus, "in_review");
+  assert.equal(patchBody.historyEvent.newStatus, "validated");
   assert.equal(detailBody.report.status, "validated");
   assert.equal(statusBody.reports.some((report) => report.id === "report-pv-002"), true);
   assert.equal(statsBody.stats.byStatus.validated, 5);
   assert.equal(statsBody.stats.byStatus.in_review, 1);
+});
+
+test("PATCH /api/reports creates internal note events through API", () => {
+  resetRuntimeReports();
+  const patchRoute = resolveRoute("PATCH", "/api/reports?id=report-pv-001", {
+    body: {
+      note: "Nota <strong>interna</strong> sin HTML ejecutable."
+    }
+  });
+  const patchBody = JSON.parse(patchRoute.body);
+  const historyRoute = resolveRoute("GET", "/api/report-history?id=report-pv-001");
+  const historyBody = JSON.parse(historyRoute.body);
+
+  assert.equal(patchRoute.statusCode, 200);
+  assert.equal(patchBody.historyEvent.type, "internal_note");
+  assert.equal(patchBody.historyEvent.note, "Nota <strong>interna</strong> sin HTML ejecutable.");
+  assert.equal(historyRoute.statusCode, 200);
+  assert.equal(historyBody.count, 1);
+  assert.equal(historyBody.events[0].note, "Nota <strong>interna</strong> sin HTML ejecutable.");
+});
+
+test("GET /api/report-history validates id, report existence and empty history", () => {
+  resetRuntimeReports();
+  const missingIdRoute = resolveRoute("GET", "/api/report-history");
+  const missingReportRoute = resolveRoute("GET", "/api/report-history?id=missing-report");
+  const emptyRoute = resolveRoute("GET", "/api/report-history?id=report-pv-001");
+  const emptyBody = JSON.parse(emptyRoute.body);
+
+  assert.equal(missingIdRoute.statusCode, 400);
+  assert.equal(JSON.parse(missingIdRoute.body).error, "missing_report_id");
+  assert.equal(missingReportRoute.statusCode, 404);
+  assert.equal(JSON.parse(missingReportRoute.body).error, "report_not_found");
+  assert.equal(emptyRoute.statusCode, 200);
+  assert.equal(emptyBody.ok, true);
+  assert.equal(emptyBody.reportId, "report-pv-001");
+  assert.equal(emptyBody.count, 0);
+  assert.deepEqual(emptyBody.events, []);
+});
+
+test("GET /api/report-history returns existing history in chronological order", () => {
+  resetRuntimeReports();
+  updateReportStatus("report-pv-001", { note: "Nota posterior" }, {
+    now: "2026-07-11T12:00:00.000Z",
+    eventId: "history-api-later"
+  });
+  updateReportStatus("report-pv-001", { status: "in_review" }, {
+    now: "2026-07-11T10:00:00.000Z",
+    eventId: "history-api-earlier"
+  });
+
+  const route = resolveRoute("GET", "/api/report-history?id=report-pv-001");
+  const body = JSON.parse(route.body);
+
+  assert.equal(route.statusCode, 200);
+  assert.deepEqual(
+    body.events.map((event) => event.id),
+    ["history-api-earlier", "history-api-later"]
+  );
 });
 
 test("PATCH /api/reports updates runtime status", () => {
@@ -356,6 +590,15 @@ test("PATCH /api/reports rejects missing id, missing report, invalid status and 
   const forbiddenFieldRoute = resolveRoute("PATCH", "/api/reports?id=report-pv-001", {
     body: { status: "validated", title: "No debe permitir cambiar titulo" }
   });
+  const emptyNoteRoute = resolveRoute("PATCH", "/api/reports?id=report-pv-001", {
+    body: { note: "   " }
+  });
+  const longNoteRoute = resolveRoute("PATCH", "/api/reports?id=report-pv-001", {
+    body: { note: "x".repeat(INTERNAL_NOTE_MAX_LENGTH + 1) }
+  });
+  const wrongNoteTypeRoute = resolveRoute("PATCH", "/api/reports?id=report-pv-001", {
+    body: { note: { text: "No" } }
+  });
 
   assert.equal(missingIdRoute.statusCode, 400);
   assert.equal(JSON.parse(missingIdRoute.body).error, "missing_report_id");
@@ -365,6 +608,13 @@ test("PATCH /api/reports rejects missing id, missing report, invalid status and 
   assert.equal(JSON.parse(invalidStatusRoute.body).error, "validation_failed");
   assert.equal(forbiddenFieldRoute.statusCode, 400);
   assert.equal(JSON.parse(forbiddenFieldRoute.body).errors[0].field, "title");
+  assert.equal(emptyNoteRoute.statusCode, 400);
+  assert.equal(JSON.parse(emptyNoteRoute.body).errors[0].field, "note");
+  assert.equal(longNoteRoute.statusCode, 400);
+  assert.equal(JSON.parse(longNoteRoute.body).errors[0].field, "note");
+  assert.equal(wrongNoteTypeRoute.statusCode, 400);
+  assert.equal(JSON.parse(wrongNoteTypeRoute.body).errors[0].field, "note");
+  assert.equal(loadReportHistory().length, 0);
 });
 
 test("PATCH /api/reports rejects invalid JSON", () => {
@@ -551,4 +801,55 @@ test("report overrides store saves and loads status overrides", () => {
       updatedAt: "2026-07-09T12:00:00.000Z"
     }
   ]);
+});
+
+test("report history store treats missing file as empty and validates saved events", () => {
+  resetRuntimeReports();
+  rmSync(process.env.LCH_REPORT_HISTORY_FILE, { force: true });
+
+  assert.deepEqual(loadReportHistory(), []);
+
+  saveReportHistory([
+    {
+      id: "history-store-001",
+      reportId: "report-pv-001",
+      type: "internal_note",
+      createdAt: "2026-07-10T13:00:00.000Z",
+      actor: "local_admin",
+      note: "Seguimiento local guardado."
+    }
+  ]);
+
+  assert.deepEqual(loadReportHistory(), [
+    {
+      id: "history-store-001",
+      reportId: "report-pv-001",
+      type: "internal_note",
+      createdAt: "2026-07-10T13:00:00.000Z",
+      actor: "local_admin",
+      note: "Seguimiento local guardado."
+    }
+  ]);
+});
+
+test("report history rejects invalid stored event structure before use", () => {
+  resetRuntimeReports();
+  saveReportHistory([
+    {
+      id: "history-invalid-001",
+      reportId: "report-pv-001",
+      type: "internal_note",
+      createdAt: "not-a-date",
+      actor: "local_admin",
+      note: "No debe usarse."
+    }
+  ]);
+
+  assert.throws(() => listReportHistory("report-pv-001"), /invalid events/);
+});
+
+test("runtime history file remains ignored by Git rules", () => {
+  const gitignore = readFileSync(".gitignore", "utf8");
+
+  assert.equal(gitignore.includes("data/runtime/*.json"), true);
 });

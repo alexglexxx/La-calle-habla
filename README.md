@@ -37,7 +37,7 @@ Stack inicial:
 - Pruebas con `node --test`.
 - Sin dependencias externas.
 
-Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle y cambio de estado interno.
+Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle, cambio de estado interno, notas internas e historial local por reporte.
 
 Todavia no hay integracion real con WhatsApp, login ni dashboard productivo.
 
@@ -65,6 +65,7 @@ El servidor local expone:
 - `/api/stats`
 - `POST /api/reports`
 - `PATCH /api/reports?id=REPORT_ID`
+- `GET /api/report-history?id=REPORT_ID`
 
 Crear reporte local:
 
@@ -91,9 +92,9 @@ Panel local:
 http://127.0.0.1:3001/admin
 ```
 
-La vista permite filtrar reportes, revisar contadores, seleccionar un reporte, ver su detalle, cambiar su estado interno y crear reportes locales desde navegador.
+La vista permite filtrar reportes, revisar contadores, seleccionar un reporte, ver su detalle, cambiar su estado interno, agregar notas internas, revisar historial interno y crear reportes locales desde navegador.
 
-El detalle local permite revisar un reporte y cambiar su estado interno. Estos cambios se guardan como overrides en `data/runtime/report-overrides.json`, archivo ignorado por Git.
+El detalle local permite revisar un reporte, cambiar su estado interno, agregar notas internas y consultar una linea de tiempo de seguimiento. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, archivo ignorado por Git. El historial se guarda en `data/runtime/report-history.json`, archivo ignorado por Git.
 
 Cambiar estado interno:
 
@@ -103,7 +104,21 @@ curl -sS -X PATCH 'http://127.0.0.1:3001/api/reports?id=report-pv-001' \
   --data '{"status":"in_review"}'
 ```
 
-`PATCH /api/reports?id=REPORT_ID` solo acepta `status`. No permite editar titulo, categoria, ubicacion, origen, fechas, prioridad ni evidencias.
+Agregar nota interna sin cambiar estado:
+
+```bash
+curl -sS -X PATCH 'http://127.0.0.1:3001/api/reports?id=report-pv-001' \
+  -H 'Content-Type: application/json' \
+  --data '{"note":"Seguimiento interno local, sin resolucion oficial."}'
+```
+
+Consultar historial interno:
+
+```bash
+curl -sS 'http://127.0.0.1:3001/api/report-history?id=report-pv-001'
+```
+
+`PATCH /api/reports?id=REPORT_ID` solo acepta `status` y `note`. No permite editar titulo, categoria, ubicacion, origen, fechas, prioridad ni evidencias. Las notas tienen limite de 500 caracteres, se guardan como seguimiento interno y no son una respuesta oficial al ciudadano.
 
 ## Como continuar
 

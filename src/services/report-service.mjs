@@ -2,15 +2,20 @@ import { seedCategories } from "../data/seed-categories.mjs";
 import { seedReports } from "../data/seed-reports.mjs";
 import { seedStatuses } from "../data/seed-statuses.mjs";
 import {
+  loadReportHistory,
   loadReportOverrides,
   loadRuntimeReports,
+  saveReportHistory,
   saveReportOverrides,
   saveRuntimeReports
 } from "./runtime-report-store.mjs";
 
 const ALLOWED_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const FORBIDDEN_CREATE_FIELDS = ["id", "status", "createdAt", "updatedAt"];
-const ALLOWED_STATUS_UPDATE_FIELDS = new Set(["status"]);
+const ALLOWED_STATUS_UPDATE_FIELDS = new Set(["status", "note"]);
+const HISTORY_EVENT_TYPES = new Set(["status_change", "internal_note"]);
+const HISTORY_ACTOR = "local_admin";
+export const INTERNAL_NOTE_MAX_LENGTH = 500;
 
 function normalize(value) {
   return String(value || "").trim().toLowerCase();
@@ -59,6 +64,10 @@ function statusExists(status) {
   return seedStatuses.some((item) => item.slug === status);
 }
 
+function isValidIsoDate(value) {
+  return typeof value === "string" && !Number.isNaN(Date.parse(value));
+}
+
 function countBy(items, key) {
   return items.reduce((accumulator, item) => {
     const value = item[key];
@@ -101,6 +110,11 @@ function allReports() {
 function nextReportId() {
   const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   return `report-local-${suffix}`;
+}
+
+function nextHistoryEventId() {
+  const suffix = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+  return `history-local-${suffix}`;
 }
 
 function validateLength(errors, field, value, min, max) {
@@ -258,22 +272,64 @@ export function validateStatusUpdateInput(input) {
     if (!ALLOWED_STATUS_UPDATE_FIELDS.has(field)) {
       errors.push({
         field,
-        message: `${field} cannot be updated in this task. Only status is allowed.`
+        message: `${field} cannot be updated in this task. Only status and note are allowed.`
       });
     }
   }
 
-  const status = cleanString(input.status);
+  let status;
+  let note;
 
-  if (!status) {
+  if (Object.hasOwn(input, "status")) {
+    if (typeof input.status !== "string") {
+      errors.push({
+        field: "status",
+        message: "status must be text."
+      });
+    } else {
+      status = cleanString(input.status);
+
+      if (!status) {
+        errors.push({
+          field: "status",
+          message: "status cannot be empty."
+        });
+      } else if (!statusExists(status)) {
+        errors.push({
+          field: "status",
+          message: "status must match an existing platform status."
+        });
+      }
+    }
+  }
+
+  if (Object.hasOwn(input, "note")) {
+    if (typeof input.note !== "string") {
+      errors.push({
+        field: "note",
+        message: "note must be text."
+      });
+    } else {
+      note = cleanString(input.note);
+
+      if (!note) {
+        errors.push({
+          field: "note",
+          message: "note cannot be empty."
+        });
+      } else if (note.length > INTERNAL_NOTE_MAX_LENGTH) {
+        errors.push({
+          field: "note",
+          message: `note must be ${INTERNAL_NOTE_MAX_LENGTH} characters or fewer.`
+        });
+      }
+    }
+  }
+
+  if (!Object.hasOwn(input, "status") && !Object.hasOwn(input, "note")) {
     errors.push({
-      field: "status",
-      message: "status is required."
-    });
-  } else if (!statusExists(status)) {
-    errors.push({
-      field: "status",
-      message: "status must match an existing platform status."
+      field: "body",
+      message: "Request body must include status or note."
     });
   }
 
@@ -287,12 +343,146 @@ export function validateStatusUpdateInput(input) {
   return {
     ok: true,
     value: {
-      status
+      ...(status ? { status } : {}),
+      ...(note ? { note } : {})
     }
   };
 }
 
 export const validateReportStatusUpdate = validateStatusUpdateInput;
+
+export function validateStoredHistoryEvent(event) {
+  const errors = [];
+
+  if (!event || typeof event !== "object" || Array.isArray(event)) {
+    return {
+      ok: false,
+      errors: [{ field: "event", message: "History event must be an object." }]
+    };
+  }
+
+  if (typeof event.id !== "string" || !event.id.trim()) {
+    errors.push({ field: "id", message: "History event id must be text." });
+  }
+
+  if (typeof event.reportId !== "string" || !event.reportId.trim()) {
+    errors.push({ field: "reportId", message: "History event reportId must be text." });
+  }
+
+  if (!HISTORY_EVENT_TYPES.has(event.type)) {
+    errors.push({ field: "type", message: "History event type is not supported." });
+  }
+
+  if (!isValidIsoDate(event.createdAt)) {
+    errors.push({ field: "createdAt", message: "History event createdAt must be ISO 8601." });
+  }
+
+  if (event.actor !== HISTORY_ACTOR) {
+    errors.push({ field: "actor", message: "History event actor must be local_admin." });
+  }
+
+  if (event.note !== undefined) {
+    if (typeof event.note !== "string") {
+      errors.push({ field: "note", message: "History event note must be text." });
+    } else if (event.note.length > INTERNAL_NOTE_MAX_LENGTH) {
+      errors.push({
+        field: "note",
+        message: `History event note must be ${INTERNAL_NOTE_MAX_LENGTH} characters or fewer.`
+      });
+    }
+  }
+
+  if (event.type === "status_change") {
+    if (!statusExists(event.previousStatus)) {
+      errors.push({ field: "previousStatus", message: "History event previousStatus is invalid." });
+    }
+
+    if (!statusExists(event.newStatus)) {
+      errors.push({ field: "newStatus", message: "History event newStatus is invalid." });
+    }
+  }
+
+  if (event.type === "internal_note") {
+    if (typeof event.note !== "string" || !event.note.trim()) {
+      errors.push({ field: "note", message: "Internal note history events require note text." });
+    }
+
+    if (event.previousStatus !== undefined || event.newStatus !== undefined) {
+      errors.push({
+        field: "status",
+        message: "Internal note history events must not include status transitions."
+      });
+    }
+  }
+
+  if (errors.length > 0) {
+    return {
+      ok: false,
+      errors
+    };
+  }
+
+  return {
+    ok: true,
+    event
+  };
+}
+
+function validatedReportHistory() {
+  const events = loadReportHistory();
+
+  for (const event of events) {
+    const validation = validateStoredHistoryEvent(event);
+
+    if (!validation.ok) {
+      throw new Error("Report history file contains invalid events.");
+    }
+  }
+
+  return events;
+}
+
+function appendHistoryEvent(event) {
+  const events = validatedReportHistory();
+  saveReportHistory([...events, event]);
+}
+
+export function listReportHistory(reportId) {
+  return validatedReportHistory()
+    .filter((event) => event.reportId === reportId)
+    .sort((left, right) => {
+      const byDate = left.createdAt.localeCompare(right.createdAt);
+      return byDate === 0 ? left.id.localeCompare(right.id) : byDate;
+    });
+}
+
+export function createInternalNote(reportId, note, options = {}) {
+  const now = options.now || new Date().toISOString();
+
+  return {
+    id: options.eventId || nextHistoryEventId(),
+    reportId,
+    type: "internal_note",
+    createdAt: now,
+    actor: HISTORY_ACTOR,
+    note
+  };
+}
+
+export function createStatusChangeEvent(reportId, previousStatus, newStatus, note, options = {}) {
+  const now = options.now || new Date().toISOString();
+
+  return {
+    id: options.eventId || nextHistoryEventId(),
+    reportId,
+    type: "status_change",
+    createdAt: now,
+    actor: HISTORY_ACTOR,
+    ...(note ? { note } : {}),
+    previousStatus,
+    newStatus
+  };
+}
 
 export function listCategories() {
   return seedCategories;
@@ -370,7 +560,7 @@ export function createReport(input, options = {}) {
 }
 
 export function updateReportStatus(id, input, options = {}) {
-  const existingReport = rawReports().find((report) => report.id === id);
+  const existingReport = getReportById(id);
 
   if (!existingReport) {
     return {
@@ -387,17 +577,49 @@ export function updateReportStatus(id, input, options = {}) {
   }
 
   const now = options.now || new Date().toISOString();
-  const overrides = loadReportOverrides().filter((override) => override.reportId !== id);
-  const override = {
-    reportId: id,
-    status: validation.value.status,
-    updatedAt: now
-  };
+  const previousStatus = existingReport.status;
+  const newStatus = validation.value.status || previousStatus;
+  let historyEvent = null;
+  let changed = false;
 
-  saveReportOverrides([...overrides, override]);
+  if (newStatus !== previousStatus) {
+    const overrides = loadReportOverrides().filter((override) => override.reportId !== id);
+    const override = {
+      reportId: id,
+      status: newStatus,
+      updatedAt: now
+    };
+
+    saveReportOverrides([...overrides, override]);
+    historyEvent = createStatusChangeEvent(
+      id,
+      previousStatus,
+      newStatus,
+      validation.value.note,
+      {
+        now,
+        eventId: options.eventId
+      }
+    );
+    appendHistoryEvent(historyEvent);
+    changed = true;
+  } else if (validation.value.note) {
+    historyEvent = createInternalNote(id, validation.value.note, {
+      now,
+      eventId: options.eventId
+    });
+    appendHistoryEvent(historyEvent);
+  }
 
   return {
     ok: true,
-    report: getReportById(id)
+    report: getReportById(id),
+    historyEvent,
+    changed,
+    noop: !changed && !historyEvent,
+    message:
+      !changed && !historyEvent
+        ? "No status change or internal note was recorded."
+        : "Internal follow-up saved."
   };
 }

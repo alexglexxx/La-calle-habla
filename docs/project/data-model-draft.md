@@ -141,6 +141,29 @@ Notas:
 - La evidencia visual es importante, pero no todos los reportes tendran foto.
 - El almacenamiento real debe decidirse cuando exista stack.
 
+## ReportHistoryEvent
+
+Representa un evento interno de seguimiento asociado a un reporte. En la implementacion local actual se guarda en `data/runtime/report-history.json` y no modifica los seeds.
+
+Campos actuales:
+
+- `id`: identificador unico del evento.
+- `reportId`: identificador del reporte asociado.
+- `type`: `status_change` o `internal_note`.
+- `createdAt`: fecha y hora ISO 8601 del evento.
+- `actor`: origen local generico, actualmente `local_admin`.
+- `note`: texto interno opcional en cambios de estado y requerido en notas internas.
+- `previousStatus`: estado interno anterior cuando `type` es `status_change`.
+- `newStatus`: estado interno nuevo cuando `type` es `status_change`.
+
+Notas:
+
+- El historial es seguimiento interno de La Calle Habla.
+- No representa resolucion oficial ni respuesta automatica al ciudadano.
+- No debe guardar telefonos, ubicacion nueva, evidencia ni nombres reales de administradores.
+- Las notas internas locales tienen limite actual de 500 caracteres.
+- Los eventos no se editan ni eliminan en el MVP local.
+
 ## DuplicateGroup
 
 Entidad opcional futura para agrupar reportes del mismo problema.

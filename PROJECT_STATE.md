@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: Detalle y cambio de estado local
+Estado: Historial local de seguimiento interno
 
 ## Objetivo MVP
 
@@ -16,7 +16,7 @@ El MVP debe validar el flujo ciudadano y administrativo antes de integrar WhatsA
 
 ## Estado operativo actual
 
-El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local y permite cambiar estado interno:
+El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local, permite cambiar estado interno y conserva historial local por reporte:
 
 - Categorias.
 - Estados.
@@ -26,6 +26,8 @@ El proyecto ya expone datos locales de lectura con seeds, permite crear reportes
 - Panel local en `/admin`.
 - Detalle local dentro de `/admin` y ruta auxiliar `/admin/report?id=REPORT_ID`.
 - Cambios de estado internos con `PATCH /api/reports?id=REPORT_ID`.
+- Notas internas con `PATCH /api/reports?id=REPORT_ID`.
+- Historial interno cronologico con `GET /api/report-history?id=REPORT_ID`.
 
 Endpoints disponibles:
 
@@ -41,8 +43,9 @@ Endpoints disponibles:
 - `GET /admin`
 - `GET /admin/report?id=REPORT_ID`
 - `PATCH /api/reports?id=REPORT_ID`
+- `GET /api/report-history?id=REPORT_ID`
 
-Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, tambien ignorado por Git.
+Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, tambien ignorado por Git. El historial interno se guarda en `data/runtime/report-history.json`, tambien ignorado por Git.
 
 ## Stack inicial
 
@@ -59,7 +62,7 @@ La decision esta documentada en `docs/project/technical-stack.md`.
 
 ## Proxima task recomendada
 
-TASK 008: agregar historial local de cambios por reporte, sin login todavia y sin integraciones externas.
+TASK 009: criterios de privacidad y retencion para datos sensibles antes de integrar canales reales o exponer administracion fuera de local.
 
 ## Riesgos
 
@@ -83,4 +86,4 @@ TASK 008: agregar historial local de cambios por reporte, sin login todavia y si
 - Definicion exacta de roles administrativos.
 - Si el MVP continuara con JSON local o migrara a base de datos.
 - Si la administracion local requiere proteccion antes de exponerse fuera de localhost.
-- Si los cambios de estado deben conservar historial completo o solo ultimo override.
+- Politica de retencion de historial interno y notas.

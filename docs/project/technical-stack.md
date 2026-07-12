@@ -29,8 +29,8 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 ## Estructura inicial
 
 - `src/server/`: servidor local minimo.
-- `src/server/admin-page.mjs`: vista administrativa local servida como HTML, con detalle y cambio de estado.
-- `src/server/report-detail-page.mjs`: vista auxiliar de detalle y cambio de estado.
+- `src/server/admin-page.mjs`: vista administrativa local servida como HTML, con detalle, cambio de estado, notas internas e historial.
+- `src/server/report-detail-page.mjs`: vista auxiliar de detalle, cambio de estado, notas internas e historial.
 - `src/lib/`: constantes y logica compartida.
 - `src/data/`: seeds locales de categorias, estados y reportes.
 - `src/services/`: servicios internos de consulta y estadisticas.
@@ -65,16 +65,30 @@ Esta task no implementa:
 - `GET /admin`
 - `GET /admin/report?id=REPORT_ID`
 - `PATCH /api/reports?id=REPORT_ID`
+- `GET /api/report-history?id=REPORT_ID`
 
 ## Vista administrativa local
 
-`GET /admin` sirve HTML con CSS y JavaScript embebidos. La vista consume los endpoints locales existentes para cargar reportes, categorias, estados, estadisticas, revisar detalle, cambiar estado interno por `PATCH /api/reports?id=REPORT_ID` y crear reportes por `POST /api/reports`.
+`GET /admin` sirve HTML con CSS y JavaScript embebidos. La vista consume los endpoints locales existentes para cargar reportes, categorias, estados, estadisticas, revisar detalle, cambiar estado interno por `PATCH /api/reports?id=REPORT_ID`, agregar notas internas, consultar historial por `GET /api/report-history?id=REPORT_ID` y crear reportes por `POST /api/reports`.
 
 No usa dependencias externas, CDN, fuentes remotas ni framework frontend.
 
 ## Cambios de estado locales
 
-`PATCH /api/reports?id=REPORT_ID` permite cambiar solo el estado interno de un reporte. Los cambios se guardan como overrides en `data/runtime/report-overrides.json` para no modificar seeds ni datos base.
+`PATCH /api/reports?id=REPORT_ID` permite cambiar el estado interno de un reporte y agregar una nota interna opcional. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json` para no modificar seeds ni datos base. Cada cambio real de estado agrega un evento `status_change` en el historial local.
+
+Si se envia el mismo estado sin nota, la respuesta es estable y no crea evento de historial. Si se envia el mismo estado con una nota valida, se registra un evento `internal_note` sin fingir un cambio de estado.
+
+## Historial interno local
+
+`GET /api/report-history?id=REPORT_ID` devuelve eventos cronologicos por reporte:
+
+- `status_change`: incluye `previousStatus` y `newStatus`.
+- `internal_note`: incluye `note`.
+
+Todos los eventos incluyen `id`, `reportId`, `type`, `createdAt` y `actor: local_admin`. El actor es generico porque el proyecto no implementa login, usuarios reales ni roles definitivos.
+
+Las notas internas se tratan como texto plano, se recortan con `trim`, rechazan contenido vacio y tienen limite de 500 caracteres. La interfaz escapa HTML antes de pintar notas.
 
 ## Persistencia local
 
@@ -82,7 +96,9 @@ Los reportes creados por `POST /api/reports` se guardan en `data/runtime/reports
 
 Los overrides de estado se guardan en `data/runtime/report-overrides.json`.
 
-Los archivos runtime estan ignorados por Git porque pueden contener datos variables de desarrollo. Las pruebas usan `LCH_RUNTIME_REPORTS_FILE` y `LCH_REPORT_OVERRIDES_FILE` para aislar datos temporales.
+El historial local se guarda en `data/runtime/report-history.json`.
+
+Los archivos runtime estan ignorados por Git porque pueden contener datos variables de desarrollo. Las pruebas usan `LCH_RUNTIME_REPORTS_FILE`, `LCH_REPORT_OVERRIDES_FILE` y `LCH_REPORT_HISTORY_FILE` para aislar datos temporales.
 
 ## Criterio para cambiar de stack
 

@@ -189,6 +189,11 @@ export function renderAdminPage() {
         background: var(--accent-dark);
       }
 
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.62;
+      }
+
       button.secondary {
         background: #e6dfd3;
         color: var(--ink);
@@ -334,6 +339,61 @@ export function renderAdminPage() {
         margin-top: 12px;
       }
 
+      .help {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.84rem;
+      }
+
+      .field-message {
+        min-height: 20px;
+        margin: 0;
+        color: var(--danger);
+        font-size: 0.88rem;
+        font-weight: 800;
+      }
+
+      .history-section {
+        margin-top: 14px;
+        border-top: 1px solid var(--line);
+        padding-top: 14px;
+      }
+
+      .history-warning {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+
+      .timeline {
+        display: grid;
+        gap: 10px;
+      }
+
+      .timeline-item {
+        display: grid;
+        gap: 5px;
+        border-left: 4px solid var(--accent);
+        border-radius: 0 8px 8px 0;
+        background: #fffdf8;
+        padding: 10px 11px;
+      }
+
+      .timeline-item.note {
+        border-left-color: var(--warn);
+      }
+
+      .timeline-type {
+        color: var(--ink);
+        font-weight: 800;
+      }
+
+      .timeline-meta,
+      .timeline-note {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
       .empty {
         border: 1px dashed var(--line);
         border-radius: 8px;
@@ -424,10 +484,28 @@ export function renderAdminPage() {
                 <select id="status-select" name="status" required></select>
               </label>
               <div class="actions">
-                <button type="submit">Actualizar estado</button>
+                <button id="status-submit" type="submit">Actualizar estado</button>
               </div>
               <p id="status-message" class="message" role="status"></p>
             </form>
+            <form id="note-form" class="status-form">
+              <label>
+                Nota interna
+                <textarea id="note-text" name="note" maxlength="500" placeholder="Agrega una nota de seguimiento interno. No es una respuesta oficial."></textarea>
+              </label>
+              <p id="note-counter" class="help">0 de 500 caracteres</p>
+              <p id="note-field-message" class="field-message" aria-live="polite"></p>
+              <div class="actions">
+                <button id="note-submit" type="submit">Agregar nota</button>
+              </div>
+              <p id="note-message" class="message" role="status"></p>
+            </form>
+            <div class="history-section">
+              <h3 class="detail-title">Historial interno</h3>
+              <p class="history-warning">Este historial corresponde al seguimiento interno de La Calle Habla y no representa una resolución oficial.</p>
+              <p id="history-message" class="message" role="status">Cargando historial...</p>
+              <div id="history-list" class="timeline"></div>
+            </div>
           </div>
           <p id="list-message" class="message">Cargando reportes...</p>
           <div id="report-list" class="report-list"></div>
@@ -495,7 +573,9 @@ export function renderAdminPage() {
         categories: [],
         statuses: [],
         stats: null,
-        selectedReportId: null
+        selectedReportId: null,
+        history: [],
+        historyLoading: false
       };
 
       const labels = {
@@ -661,6 +741,9 @@ export function renderAdminPage() {
         if (!report) {
           panel.hidden = true;
           byId("status-message").textContent = "";
+          byId("note-message").textContent = "";
+          byId("history-list").innerHTML = "";
+          byId("history-message").textContent = "";
           return;
         }
 
@@ -681,19 +764,94 @@ export function renderAdminPage() {
           '<div><strong>Creado:</strong> ' + escapeHtml(formatDate(report.createdAt)) + '</div>' +
           '<div><strong>Actualizado:</strong> ' + escapeHtml(formatDate(report.updatedAt)) + '</div>' +
           '<div><strong>ID:</strong> ' + escapeHtml(report.id) + '</div>';
+        renderHistory();
+      }
+
+      function renderHistory() {
+        const message = byId("history-message");
+        const list = byId("history-list");
+        const report = selectedReport();
+
+        if (!report) {
+          return;
+        }
+
+        if (state.historyLoading) {
+          message.className = "message";
+          message.textContent = "Cargando historial...";
+          list.innerHTML = "";
+          return;
+        }
+
+        if (state.history.length === 0) {
+          message.className = "message";
+          message.textContent = "Este reporte todavía no tiene seguimiento interno registrado.";
+          list.innerHTML = '<div class="empty">Sin historial interno por ahora.</div>';
+          return;
+        }
+
+        message.className = "message";
+        message.textContent = state.history.length + " eventos registrados";
+        list.innerHTML = state.history.map((event) => {
+          const isNote = event.type === "internal_note";
+          const typeLabel = isNote ? "Nota interna" : "Cambio de estado interno";
+          const transition = isNote
+            ? ""
+            : '<div class="timeline-meta"><strong>Estado interno:</strong> ' +
+              escapeHtml(statusName(event.previousStatus)) + " a " + escapeHtml(statusName(event.newStatus)) +
+              '</div>';
+          const note = event.note
+            ? '<div class="timeline-note"><strong>Nota:</strong> ' + escapeHtml(event.note) + '</div>'
+            : "";
+
+          return '<article class="timeline-item ' + (isNote ? "note" : "status") + '">' +
+            '<div class="timeline-type">' + escapeHtml(typeLabel) + '</div>' +
+            '<div class="timeline-meta"><time datetime="' + escapeHtml(event.createdAt) + '">' +
+              escapeHtml(formatDate(event.createdAt)) + '</time> · Origen local: ' + escapeHtml(event.actor) + '</div>' +
+            transition +
+            note +
+          '</article>';
+        }).join("");
+      }
+
+      async function loadHistory(reportId) {
+        state.historyLoading = true;
+        state.history = [];
+        renderHistory();
+
+        const response = await fetchJson("/api/report-history?id=" + encodeURIComponent(reportId));
+        state.history = response.events || [];
+        state.historyLoading = false;
+        renderHistory();
       }
 
       function selectReport(id) {
         state.selectedReportId = id;
+        state.history = [];
+        state.historyLoading = true;
         byId("status-message").className = "message";
         byId("status-message").textContent = "";
+        byId("note-message").className = "message";
+        byId("note-message").textContent = "";
+        byId("note-field-message").textContent = "";
+        byId("note-text").value = "";
+        updateNoteCounter();
         renderReports();
         renderDetail();
         byId("report-detail-panel").scrollIntoView({ behavior: "smooth", block: "start" });
+        loadHistory(id).catch((error) => {
+          state.historyLoading = false;
+          state.history = [];
+          byId("history-message").className = "message error";
+          byId("history-message").textContent = error.message || "No se pudo cargar el historial.";
+          byId("history-list").innerHTML = "";
+        });
       }
 
       function closeDetail() {
         state.selectedReportId = null;
+        state.history = [];
+        state.historyLoading = false;
         renderReports();
         renderDetail();
       }
@@ -772,6 +930,7 @@ export function renderAdminPage() {
         event.preventDefault();
         const report = selectedReport();
         const message = byId("status-message");
+        const button = byId("status-submit");
 
         if (!report) {
           return;
@@ -779,6 +938,7 @@ export function renderAdminPage() {
 
         message.className = "message";
         message.textContent = "Actualizando estado...";
+        button.disabled = true;
 
         try {
           const response = await fetchJson("/api/reports?id=" + encodeURIComponent(report.id), {
@@ -793,11 +953,76 @@ export function renderAdminPage() {
 
           state.selectedReportId = response.report.id;
           await loadData();
+          await loadHistory(response.report.id);
           message.className = "message success";
-          message.textContent = "Estado actualizado para seguimiento interno local.";
+          message.textContent = response.noop
+            ? "El estado interno ya era ese. No se agrego historial sin nota."
+            : "Estado actualizado para seguimiento interno local.";
         } catch (error) {
           message.className = "message error";
           message.textContent = error.message || "No se pudo actualizar el estado.";
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      function updateNoteCounter() {
+        const value = byId("note-text").value;
+        byId("note-counter").textContent = value.length + " de 500 caracteres";
+      }
+
+      async function submitNote(event) {
+        event.preventDefault();
+        const report = selectedReport();
+        const note = byId("note-text").value.trim();
+        const message = byId("note-message");
+        const fieldMessage = byId("note-field-message");
+        const button = byId("note-submit");
+
+        if (!report) {
+          return;
+        }
+
+        fieldMessage.textContent = "";
+        message.className = "message";
+
+        if (!note) {
+          fieldMessage.textContent = "La nota interna no puede estar vacia.";
+          message.textContent = "";
+          return;
+        }
+
+        if (note.length > 500) {
+          fieldMessage.textContent = "La nota interna debe tener 500 caracteres o menos.";
+          message.textContent = "";
+          return;
+        }
+
+        button.disabled = true;
+        message.textContent = "Guardando nota interna...";
+
+        try {
+          const response = await fetchJson("/api/reports?id=" + encodeURIComponent(report.id), {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              note
+            })
+          });
+
+          state.selectedReportId = response.report.id;
+          await loadHistory(response.report.id);
+          byId("note-text").value = "";
+          updateNoteCounter();
+          message.className = "message success";
+          message.textContent = "Nota interna agregada al historial.";
+        } catch (error) {
+          message.className = "message error";
+          message.textContent = error.message || "No se pudo guardar la nota interna.";
+        } finally {
+          button.disabled = false;
         }
       }
 
@@ -807,6 +1032,8 @@ export function renderAdminPage() {
 
       byId("report-form").addEventListener("submit", submitReport);
       byId("status-form").addEventListener("submit", submitStatus);
+      byId("note-form").addEventListener("submit", submitNote);
+      byId("note-text").addEventListener("input", updateNoteCounter);
       byId("close-detail").addEventListener("click", closeDetail);
 
       loadData().catch(() => {

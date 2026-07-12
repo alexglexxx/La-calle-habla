@@ -3,6 +3,7 @@ import path from "node:path";
 
 const DEFAULT_RUNTIME_REPORTS_FILE = "data/runtime/reports.json";
 const DEFAULT_REPORT_OVERRIDES_FILE = "data/runtime/report-overrides.json";
+const DEFAULT_REPORT_HISTORY_FILE = "data/runtime/report-history.json";
 
 export function getRuntimeReportsFilePath() {
   return path.resolve(process.env.LCH_RUNTIME_REPORTS_FILE || DEFAULT_RUNTIME_REPORTS_FILE);
@@ -10,6 +11,10 @@ export function getRuntimeReportsFilePath() {
 
 export function getReportOverridesFilePath() {
   return path.resolve(process.env.LCH_REPORT_OVERRIDES_FILE || DEFAULT_REPORT_OVERRIDES_FILE);
+}
+
+export function getReportHistoryFilePath() {
+  return path.resolve(process.env.LCH_REPORT_HISTORY_FILE || DEFAULT_REPORT_HISTORY_FILE);
 }
 
 function loadJsonArray(filePath, label) {
@@ -51,4 +56,12 @@ export function loadReportOverrides() {
 
 export function saveReportOverrides(overrides) {
   saveJsonArray(getReportOverridesFilePath(), overrides);
+}
+
+export function loadReportHistory() {
+  return loadJsonArray(getReportHistoryFilePath(), "Report history");
+}
+
+export function saveReportHistory(events) {
+  saveJsonArray(getReportHistoryFilePath(), events);
 }

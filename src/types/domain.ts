@@ -15,6 +15,10 @@ export type ReportStatusSlug =
 
 export type EvidenceType = "photo" | "video" | "text" | "location" | "document";
 
+export type ReportHistoryEventType = "status_change" | "internal_note";
+
+export type ReportHistoryActor = "local_admin";
+
 export type LocationSource =
   | "shared_location"
   | "manual_text"
@@ -104,6 +108,17 @@ export interface Evidence {
   capturedAt?: IsoDateTime;
   receivedAt: IsoDateTime;
   metadata?: Record<string, unknown>;
+}
+
+export interface LocalReportHistoryEvent {
+  id: EntityId;
+  reportId: EntityId;
+  type: ReportHistoryEventType;
+  createdAt: IsoDateTime;
+  actor: ReportHistoryActor;
+  note?: string;
+  previousStatus?: ReportStatusSlug;
+  newStatus?: ReportStatusSlug;
 }
 
 export interface DuplicateGroup {

@@ -137,7 +137,7 @@ Resultado:
 - Persistencia de overrides en `data/runtime/report-overrides.json`.
 - Auditoria en `docs/audits/task-007-report-detail-status-update.md`.
 
-## TASK 008 sugerida: Historial local de cambios
+## TASK 008 completada: Historial local de cambios
 
 Objetivo:
 
@@ -150,6 +150,29 @@ Validar:
 - Que el historial persiste tras reinicio.
 - Que no se modifica el seed original.
 - Que la interfaz no comunica resolucion gubernamental.
+
+Resultado:
+
+- `PATCH /api/reports?id=REPORT_ID` registra eventos `status_change` para cambios reales de estado.
+- `PATCH /api/reports?id=REPORT_ID` permite `note` para notas internas sin cambiar estado.
+- `GET /api/report-history?id=REPORT_ID` devuelve historial cronologico por reporte.
+- Historial persistente en `data/runtime/report-history.json`, ignorado por Git.
+- Linea de tiempo “Historial interno” en `/admin` y `/admin/report?id=REPORT_ID`.
+- Auditoria en `docs/audits/task-008-local-report-history.md`.
+
+## TASK 009 sugerida: Privacidad y retencion antes de canales reales
+
+Objetivo:
+
+- Definir criterios de privacidad y retencion para datos sensibles antes de integrar WhatsApp real, fotos reales, mapas, login o exponer administracion fuera de local.
+- Documentar que datos pueden guardarse, por cuanto tiempo y con que controles minimos.
+- Revisar lenguaje de interfaz para mantener separacion entre seguimiento interno y resolucion oficial.
+
+Validar:
+
+- Que ubicacion, evidencia, telefono y notas internas tengan tratamiento documentado.
+- Que `/admin` siga siendo local mientras no exista decision de seguridad.
+- Que la siguiente implementacion tecnica no avance integraciones externas sin estas decisiones.
 
 ## Fase posterior
 

@@ -2,6 +2,7 @@ import {
   createReport,
   getReportById,
   getReportStats,
+  listReportHistory,
   listCategories,
   listReports,
   listStatuses,
@@ -291,7 +292,11 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
 
         return json(200, {
           ok: true,
-          report: result.report
+          report: result.report,
+          historyEvent: result.historyEvent,
+          changed: result.changed,
+          noop: result.noop,
+          message: result.message
         });
       } catch (error) {
         return json(500, {
@@ -350,6 +355,52 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
       ok: true,
       stats: getReportStats()
     });
+  }
+
+  if (url.pathname === "/api/report-history") {
+    if (method !== "GET") {
+      return json(405, {
+        ok: false,
+        error: "method_not_allowed"
+      });
+    }
+
+    const id = url.searchParams.get("id");
+
+    if (!id) {
+      return json(400, {
+        ok: false,
+        error: "missing_report_id",
+        message: "GET /api/report-history requires an id query parameter."
+      });
+    }
+
+    const report = getReportById(id);
+
+    if (!report) {
+      return json(404, {
+        ok: false,
+        error: "report_not_found",
+        id
+      });
+    }
+
+    try {
+      const events = listReportHistory(id);
+
+      return json(200, {
+        ok: true,
+        reportId: id,
+        count: events.length,
+        events
+      });
+    } catch (error) {
+      return json(500, {
+        ok: false,
+        error: "runtime_history_failed",
+        message: error instanceof Error ? error.message : "Unexpected history persistence error."
+      });
+    }
   }
 
   return json(404, {
