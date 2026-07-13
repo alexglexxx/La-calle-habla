@@ -37,9 +37,9 @@ Stack inicial:
 - Pruebas con `node --test`.
 - Sin dependencias externas.
 
-Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle, cambio de estado interno, notas internas, historial local por reporte y aviso operativo de privacidad del MVP.
+Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle, cambio de estado interno, notas internas, historial local por reporte, aviso operativo de privacidad del MVP y motor interno de ingreso expres anonimo compatible con WhatsApp.
 
-Todavia no hay integracion real con WhatsApp, login ni dashboard productivo.
+Todavia no hay integracion real con WhatsApp, webhook publico, login ni dashboard productivo.
 
 ## Comandos
 
@@ -48,6 +48,7 @@ npm run dev
 npm run lint
 npm run build
 npm test
+npm run simulate:report-intake
 ```
 
 El servidor local expone:
@@ -122,6 +123,29 @@ curl -sS 'http://127.0.0.1:3001/api/report-history?id=report-pv-001'
 ```
 
 `PATCH /api/reports?id=REPORT_ID` solo acepta `status` y `note`. No permite editar titulo, categoria, ubicacion, origen, fechas, prioridad ni evidencias. Las notas tienen limite de 500 caracteres, se guardan como seguimiento interno y no son una respuesta oficial al ciudadano.
+
+## Ingreso expres anonimo
+
+El flujo ciudadano central del MVP se implementa como motor local independiente del proveedor:
+
+```text
+Foto -> ubicacion compartida -> listo
+Foto -> calles, colonia o referencia -> listo
+```
+
+Tambien funciona si llega primero la ubicacion o referencia y despues la foto. No pide nombre, telefono manual, cuenta, contrasena, categoria obligatoria, descripcion obligatoria ni folio publico.
+
+El servicio genera `phoneId` con HMAC-SHA256 usando `REPORTER_ID_SECRET`, pero no persiste el numero original. En administracion solo se muestra un alias corto como `Ciudadano anonimo · a8f2`.
+
+El simulador local valida los caminos principales sin conectar WhatsApp real:
+
+```bash
+npm run simulate:report-intake
+```
+
+El simulador usa un secreto ficticio, referencias de foto ficticias, coordenadas ficticias, idempotencia por `messageId`, resolucion local de referencias y limpia sus propios datos temporales. No crea webhook abierto ni descarga medios de Meta.
+
+El motor guarda sesiones temporales en `data/runtime/report-intake-sessions.json`, archivo ignorado por Git.
 
 ## Privacidad MVP
 

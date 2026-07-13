@@ -12,13 +12,22 @@ Esta decision esta documentada en `docs/project/technical-stack.md` y puede camb
 
 ### Canal WhatsApp
 
-WhatsApp sera el canal ciudadano principal. En desarrollo temprano puede simularse con formularios, seeds o endpoints internos antes de conectar una API real.
+WhatsApp sera el canal ciudadano principal. En desarrollo temprano se simula con un contrato normalizado y `npm run simulate:report-intake`; no existe webhook productivo ni conexion real con Meta.
 
 Responsabilidades futuras:
 
 - Recibir texto, fotos y ubicacion.
 - Enviar confirmaciones simples.
 - Pedir informacion faltante.
+
+Responsabilidades actuales del contrato normalizado:
+
+- Recibir `IncomingCitizenMessage` con `action`, `image`, `location` o `text`.
+- Generar `phoneId` pseudonimo con HMAC-SHA256 y `REPORTER_ID_SECRET`.
+- Mantener sesiones temporales por ciudadano anonimo.
+- Completar reportes con foto y ubicacion compartida o referencia escrita.
+- Responder con `CitizenReply` sin folio, ID interno ni enlace administrativo.
+- Evitar guardar numero original, payload completo del proveedor, IP o user-agent.
 
 ### Webhook/backend
 
@@ -31,6 +40,8 @@ Responsabilidades:
 - Asociar evidencia.
 - Ejecutar validaciones basicas.
 - Exponer datos para dashboard y administracion.
+
+El motor actual de ingreso expres vive en `src/services/report-intake-service.mjs` y queda separado del adaptador de proveedor. Un adaptador real de WhatsApp debera transformar el payload de Meta al contrato normalizado, descargar y verificar medios, y enviar la respuesta resultante sin reescribir el dominio.
 
 ### Base de datos
 
@@ -65,6 +76,21 @@ Responsabilidades futuras:
 - Ayudar a detectar concentraciones.
 
 No se debe integrar un proveedor de mapas antes de decidir stack y necesidades reales del MVP.
+
+### Resolucion local de ubicaciones
+
+El MVP actual resuelve referencias escritas sin red, mapas, geocodificacion externa ni IA.
+
+Responsabilidades:
+
+- Normalizar texto de calles, colonias y referencias para comparacion interna.
+- Comparar referencias con reportes anteriores que ya tienen coordenadas.
+- Calcular distancia con Haversine.
+- Agrupar puntos dentro de un radio inicial de 150 metros.
+- Asignar coordenadas inferidas solo cuando hay al menos dos antecedentes consistentes y sin contradicciones.
+- Dejar la ubicacion pendiente cuando la evidencia local no es suficiente.
+
+Las inferencias se muestran como aproximadas y no sustituyen coordenadas exactas compartidas por la persona.
 
 ### Sistema de estados
 
@@ -115,6 +141,8 @@ Puede producir resumenes por colonia, categoria, periodo y tendencia. Debe basar
 - Almacenamiento de evidencia.
 - Mapa.
 - Deploy controlado.
+
+Antes de esta etapa se requiere decision documentada de proveedor, credenciales, secreto `REPORTER_ID_SECRET`, descarga segura de medios, almacenamiento de evidencia real, proteccion de `/admin`, revision legal y URL publica controlada.
 
 ## Decisiones abiertas
 

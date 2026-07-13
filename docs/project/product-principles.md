@@ -4,6 +4,8 @@
 
 Reportar debe sentirse como mandar un mensaje normal. El sistema debe pedir solo lo necesario y guiar con preguntas cortas cuando falte informacion.
 
+Para el flujo central del MVP, lo obligatorio debe ser solamente foto y ubicacion compartida o referencia escrita. No debe pedir nombre, telefono manual, cuenta, contrasena, folio publico, categoria obligatoria ni descripcion obligatoria.
+
 ## Util para administracion
 
 Cada reporte debe quedar en una estructura que permita revisar, filtrar, priorizar y dar seguimiento. La utilidad administrativa depende de datos claros, no de interfaces complejas.
@@ -15,9 +17,11 @@ Un reporte fuerte debe buscar cuatro elementos minimos:
 - Foto o evidencia visual cuando exista.
 - Ubicacion.
 - Fecha y hora.
-- Categoria del problema.
+- Categoria del problema cuando pueda clasificarse internamente.
 
 La plataforma debe aceptar reportes incompletos, pero distinguir entre informacion recibida e informacion validada.
+
+En el ingreso expres anonimo, la categoria se deja pendiente para revision administrativa con tal de no romper el criterio Foto -> ubicacion o calles -> listo.
 
 ## No prometer solucion gubernamental automatica
 
@@ -56,3 +60,5 @@ La plataforma debe pedir solo los datos necesarios para revisar un reporte. Tele
 El aviso de privacidad del MVP debe ser claro, corto y visible antes de enviar. No debe presentarse como cumplimiento legal definitivo hasta tener revision legal.
 
 La administracion debe consultar solo lo necesario y evitar copiar datos personales a notas internas.
+
+Cuando el canal sea WhatsApp, La Calle Habla debe tratar el reporte como anonimo dentro del sistema: no guardar el numero original, usar `phoneId` pseudonimo con secreto y mostrar solo alias corto. Esto no debe presentarse como anonimato absoluto frente a Meta.

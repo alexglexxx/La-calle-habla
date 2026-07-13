@@ -18,10 +18,12 @@ const requiredFiles = [
   "src/lib/domain-constants.mjs",
   "src/services/runtime-report-store.mjs",
   "src/services/report-service.mjs",
+  "src/services/report-intake-service.mjs",
   "src/server/admin-page.mjs",
   "src/server/report-detail-page.mjs",
   "src/server/routes.mjs",
   "src/server/index.mjs",
+  "scripts/simulate-report-intake.mjs",
   "tests/domain-contract.test.mjs"
 ];
 

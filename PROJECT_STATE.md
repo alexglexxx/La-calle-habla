@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: Privacidad operativa MVP y consentimiento local
+Estado: Ingreso exprés anónimo simulado
 
 ## Objetivo MVP
 
@@ -16,7 +16,7 @@ El MVP debe validar el flujo ciudadano y administrativo antes de integrar WhatsA
 
 ## Estado operativo actual
 
-El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local, permite cambiar estado interno, conserva historial local por reporte y aplica una politica operativa provisional de privacidad del MVP:
+El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local, permite cambiar estado interno, conserva historial local por reporte, aplica una politica operativa provisional de privacidad del MVP y cuenta con un motor interno de ingreso exprés anónimo compatible con WhatsApp:
 
 - Categorias.
 - Estados.
@@ -32,6 +32,11 @@ El proyecto ya expone datos locales de lectura con seeds, permite crear reportes
 - Reconocimiento versionado `mvp-1` para reportes nuevos.
 - Consentimiento explicito para telefono, ubicacion precisa o evidencia.
 - Clasificacion y retencion provisional documentadas en `docs/project/privacy-and-data-retention.md`.
+- Contrato normalizado de mensajes ciudadanos.
+- Sesiones temporales por `phoneId` pseudonimo.
+- Flujo Foto -> ubicacion compartida o referencia escrita -> listo.
+- Idempotencia por `messageId`, rate limiting local y resolucion determinista de referencias.
+- Simulador local `npm run simulate:report-intake`.
 
 Endpoints disponibles:
 
@@ -49,7 +54,7 @@ Endpoints disponibles:
 - `PATCH /api/reports?id=REPORT_ID`
 - `GET /api/report-history?id=REPORT_ID`
 
-Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, tambien ignorado por Git. El historial interno se guarda en `data/runtime/report-history.json`, tambien ignorado por Git.
+Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, tambien ignorado por Git. El historial interno se guarda en `data/runtime/report-history.json`, tambien ignorado por Git. Las sesiones del ingreso expres se guardan en `data/runtime/report-intake-sessions.json`, tambien ignorado por Git.
 
 ## Stack inicial
 
@@ -66,7 +71,7 @@ La decision esta documentada en `docs/project/technical-stack.md`.
 
 ## Proxima task recomendada
 
-TASK 010: proteccion local de `/admin` y criterios de acceso antes de exponer administracion fuera de localhost.
+TASK 011: proteccion local de `/admin` y criterios de acceso antes de exponer administracion fuera de localhost.
 
 ## Riesgos
 
@@ -84,6 +89,7 @@ TASK 010: proteccion local de `/admin` y criterios de acceso antes de exponer ad
 - Base de datos.
 - Framework web, si el MVP lo requiere.
 - Proveedor de WhatsApp.
+- Adaptador real de WhatsApp/Meta cuando existan credenciales, webhook publico y decision documentada.
 - Proveedor de mapas.
 - Aviso de privacidad legal definitivo.
 - Criterios de anonimato.

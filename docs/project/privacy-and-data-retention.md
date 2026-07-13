@@ -48,13 +48,22 @@ Campos generados por el servidor:
 - `updatedAt`.
 - `privacyAcknowledgedAt`.
 
+Campos adicionales del flujo expres anonimo simulado:
+
+- `phoneId`: identificador pseudonimo HMAC del remitente, nunca el numero original.
+- `anonymousAlias`: alias corto para administracion local, por ejemplo `Ciudadano anonimo · a8f2`.
+- `intakeChannel`: canal normalizado, actualmente `whatsapp_normalized`.
+- `photoReference`: referencia segura de fotografia ficticia o futura referencia de medio.
+- `locationDetails`: ubicacion compartida, escrita, inferida o pendiente.
+- `classificationStatus`: `pending_classification` cuando no se solicita categoria al ciudadano.
+
 ## Clasificacion de datos
 
 | Categoria | Datos | Uso permitido en el MVP | Regla |
 | --- | --- | --- | --- |
 | Bajo riesgo | Categoria, descripcion general sin datos personales, estado interno, fechas generales, prioridad interna | Ordenar y revisar reportes | Pedir solo lo necesario |
 | Personales o sensibles | Telefono, ubicacion precisa, fotos con personas/placas/domicilios/rostros, nombres en descripcion, informacion de contacto, notas internas con datos personales | Solo si la persona los proporciona y son necesarios para revisar el reporte | Requiere consentimiento explicito cuando el campo opcional se usa |
-| Tecnicos | ID de reporte, ID de eventos, timestamps, version del aviso, indicadores de consentimiento, origen tecnico | Auditoria local del MVP | Generados o normalizados por servidor cuando corresponda |
+| Tecnicos | ID de reporte, ID de eventos, timestamps, version del aviso, indicadores de consentimiento, origen tecnico, `phoneId`, `messageId` procesado | Auditoria local del MVP, idempotencia y control de abuso | Generados o normalizados por servidor cuando corresponda |
 | Prohibidos o innecesarios | Contrasenas, datos bancarios, identificaciones oficiales, CURP, RFC, informacion medica, datos biometricos, informacion de menores, credenciales de acceso, documentos oficiales completos | No deben solicitarse ni incluirse | Advertir en interfaz y evitar nuevos campos para estos datos |
 
 ## Minimizacion
@@ -71,6 +80,9 @@ Reglas operativas:
 - No copiar automaticamente descripcion, telefono, ubicacion o evidencia al historial.
 - No guardar IP, user-agent, fingerprint ni datos adicionales no solicitados.
 - No usar analytics, cookies publicitarias ni rastreo.
+- No guardar numero original de WhatsApp dentro de La Calle Habla.
+- No mostrar `phoneId` completo en administracion.
+- No copiar automaticamente telefono, ubicacion, evidencia o descripcion a notas internas.
 
 ## Consentimiento y version del aviso
 
@@ -94,11 +106,47 @@ Reportes seed y reportes runtime historicos sin estos campos siguen siendo compa
 Registro histórico sin consentimiento versionado
 ```
 
+Para el flujo expres anonimo compatible con WhatsApp, la accion `Continuar anonimo` registra:
+
+- `privacyNoticeVersion: "mvp-1"`;
+- `privacyAcknowledged: true`;
+- `privacyAcknowledgedAt` generado por servidor;
+- `sensitiveDataConsent: true`, porque el flujo requiere foto y ubicacion o referencia.
+
+Este consentimiento es operativo para el MVP y no reemplaza un aviso legal definitivo.
+
+## Identidad pseudonima del flujo conversacional
+
+El adaptador recibe temporalmente el identificador del remitente para procesar el evento, pero La Calle Habla no debe persistir el numero original.
+
+La implementacion genera:
+
+```text
+phoneId = HMAC-SHA256(REPORTER_ID_SECRET, normalizedWhatsAppSender)
+```
+
+Reglas:
+
+- `REPORTER_ID_SECRET` debe venir de variables de entorno y no versionarse.
+- No usar SHA-256 simple.
+- No guardar el numero normalizado ni el numero original.
+- No imprimir el numero en logs.
+- Mostrar solo alias corto, por ejemplo `Ciudadano anonimo · a8f2`.
+- Documentar que es un identificador pseudonimo irreversible dentro del sistema bajo una clave secreta, no anonimato absoluto.
+
+Limitacion frente a Meta:
+
+- La Calle Habla no guarda ni muestra el numero original.
+- WhatsApp/Meta si procesa y conoce el numero porque opera el canal.
+- El reporte es anonimo dentro de La Calle Habla, pero no completamente anonimo frente al proveedor.
+
 ## Manejo por tipo de dato
 
 ### Ubicacion
 
 La ubicacion textual aproximada es obligatoria para que el reporte sea util. La ubicacion precisa es opcional y se clasifica como sensible. En cards generales se debe evitar exponer ubicacion precisa; el detalle local queda reservado para revision necesaria.
+
+En el flujo expres anonimo, la persona puede compartir coordenadas o escribir calles, colonia o referencia. Si comparte coordenadas, se guardan como `whatsapp_shared`, `exact`, `high`. Si escribe referencia, el sistema conserva el texto original y normaliza una copia para comparacion local. Cuando no hay antecedentes suficientes, el reporte queda con ubicacion pendiente.
 
 ### Telefono
 
@@ -107,6 +155,8 @@ El telefono es opcional y sensible. Solo debe solicitarse si la persona quiere q
 ### Evidencia
 
 En esta etapa no hay subida real de archivos. `evidenceCount` solo indica cantidad declarada. Si se declara evidencia, se trata como dato opcional sensible porque futuras fotos podrian contener personas, placas, domicilios o rostros.
+
+El flujo expres acepta referencias de fotografia con MIME `image/jpeg`, `image/png` o `image/webp`. No descarga medios reales de Meta en esta etapa y no ejecuta reconocimiento facial, lectura de placas, IA ni analisis automatico de contenido.
 
 ### Descripcion
 
@@ -132,6 +182,7 @@ Archivos runtime locales:
 - `data/runtime/reports.json`: reportes creados localmente.
 - `data/runtime/report-overrides.json`: overrides de estado interno.
 - `data/runtime/report-history.json`: historial y notas internas.
+- `data/runtime/report-intake-sessions.json`: sesiones temporales, idempotencia y rate limiting del flujo expres.
 
 Estos archivos estan ignorados por Git mediante `data/runtime/*.json`. No deben versionarse porque pueden contener datos ciudadanos o de prueba.
 
@@ -149,6 +200,8 @@ El MVP actual no usa:
 - Cookies publicitarias.
 - Almacenamiento cloud.
 - Deploy publico.
+
+El simulador local usa contrato compatible con WhatsApp, pero no representa una conexion real con Meta.
 
 ## Riesgos del almacenamiento JSON
 
@@ -182,6 +235,13 @@ Overrides e historial:
 - Deben tratarse como relacionados al reporte.
 - Si en el futuro se elimina un reporte, tambien deben considerarse sus overrides e historial.
 
+Sesiones de ingreso expres:
+
+- Las sesiones incompletas expiran operativamente despues de 15 minutos.
+- Los `messageId` procesados se conservan temporalmente para idempotencia.
+- Los contadores de reportes completados se conservan para rate limiting local.
+- Si en el futuro se elimina un reporte, tambien debe revisarse si existen sesiones o referencias tecnicas relacionadas.
+
 Evidencias futuras:
 
 - Requieren decision separada antes de subir o almacenar archivos reales.
@@ -197,6 +257,7 @@ No hay borrado automatico en esta task. Para limpiar un entorno local de prueba 
    - `data/runtime/reports.json`
    - `data/runtime/report-overrides.json`
    - `data/runtime/report-history.json`
+   - `data/runtime/report-intake-sessions.json`
 4. Eliminar solo registros runtime relacionados, nunca seeds ni codigo fuente.
 5. Verificar que los endpoints sigan funcionando con seeds.
 6. Registrar la limpieza en una auditoria.

@@ -643,6 +643,8 @@ export function createReport(input, options = {}) {
   const report = {
     id: options.id || nextReportId(),
     ...validation.value,
+    ...(options.extraFields || {}),
+    source: options.source || validation.value.source,
     privacyAcknowledgedAt: now,
     status: "new",
     createdAt: now,
@@ -655,6 +657,34 @@ export function createReport(input, options = {}) {
   return {
     ok: true,
     report
+  };
+}
+
+export function updateRuntimeReportFields(id, fields, options = {}) {
+  const now = options.now || new Date().toISOString();
+  const runtimeReports = loadRuntimeReports();
+  const index = runtimeReports.findIndex((report) => report.id === id);
+
+  if (index === -1) {
+    return {
+      ok: false,
+      notFound: true,
+      id
+    };
+  }
+
+  const updated = {
+    ...runtimeReports[index],
+    ...fields,
+    updatedAt: now
+  };
+
+  runtimeReports[index] = updated;
+  saveRuntimeReports(runtimeReports);
+
+  return {
+    ok: true,
+    report: getReportById(id)
   };
 }
 

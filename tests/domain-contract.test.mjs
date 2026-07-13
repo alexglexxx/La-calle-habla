@@ -22,9 +22,19 @@ import {
   validateReportStatusUpdate
 } from "../src/services/report-service.mjs";
 import {
+  generatePhoneId,
+  groupNearbyPoints,
+  handleIncomingCitizenMessage,
+  haversineMeters,
+  normalizeReference,
+  resolveWrittenLocation
+} from "../src/services/report-intake-service.mjs";
+import {
+  loadReportIntakeSessions,
   loadReportHistory,
   loadReportOverrides,
   loadRuntimeReports,
+  saveReportIntakeSessions,
   saveReportHistory,
   saveReportOverrides,
   saveRuntimeReports
@@ -36,6 +46,7 @@ const tempDir = mkdtempSync(path.join(tmpdir(), "calle-habla-tests-"));
 process.env.LCH_RUNTIME_REPORTS_FILE = path.join(tempDir, "reports.json");
 process.env.LCH_REPORT_OVERRIDES_FILE = path.join(tempDir, "report-overrides.json");
 process.env.LCH_REPORT_HISTORY_FILE = path.join(tempDir, "report-history.json");
+process.env.LCH_REPORT_INTAKE_SESSIONS_FILE = path.join(tempDir, "report-intake-sessions.json");
 
 test.after(() => {
   rmSync(tempDir, { recursive: true, force: true });
@@ -45,7 +56,10 @@ function resetRuntimeReports(reports = []) {
   saveRuntimeReports(reports);
   saveReportOverrides([]);
   saveReportHistory([]);
+  saveReportIntakeSessions([]);
 }
+
+const reporterIdSecret = "test-reporter-secret-for-task-010";
 
 function validReportInput(overrides = {}) {
   return {
@@ -62,6 +76,69 @@ function validReportInput(overrides = {}) {
     sensitiveDataConsent: false,
     ...overrides
   };
+}
+
+function intakeMessage(overrides = {}) {
+  return {
+    provider: "test",
+    senderReference: "+52 322 000 0101",
+    messageId: `msg-${Math.random().toString(36).slice(2)}`,
+    timestamp: "2026-07-13T10:00:00.000Z",
+    type: "action",
+    action: { id: "continue_anonymous" },
+    ...overrides
+  };
+}
+
+function intakeAction(overrides = {}) {
+  return intakeMessage({
+    type: "action",
+    action: { id: "continue_anonymous" },
+    ...overrides
+  });
+}
+
+function intakePhoto(overrides = {}) {
+  return intakeMessage({
+    messageId: "photo-message",
+    type: "image",
+    image: {
+      mediaId: "safe-photo-ref",
+      mimeType: "image/jpeg",
+      sizeBytes: 120000
+    },
+    ...overrides
+  });
+}
+
+function intakeLocation(overrides = {}) {
+  return intakeMessage({
+    messageId: "location-message",
+    type: "location",
+    location: {
+      latitude: 20.6534,
+      longitude: -105.2258,
+      name: "Av Mexico y Fluvial Vallarta",
+      address: "Puerto Vallarta"
+    },
+    ...overrides
+  });
+}
+
+function intakeText(body, overrides = {}) {
+  return intakeMessage({
+    messageId: "text-message",
+    type: "text",
+    text: { body },
+    ...overrides
+  });
+}
+
+function runIntake(message, overrides = {}) {
+  return handleIncomingCitizenMessage(message, {
+    reporterIdSecret,
+    ...overrides
+  });
 }
 
 test("initial categories use citizen-facing labels", () => {
@@ -274,6 +351,338 @@ test("admin route does not break health or API routes", () => {
   assert.equal(JSON.parse(healthRoute.body).ok, true);
   assert.equal(JSON.parse(reportsRoute.body).count, seedReports.length);
   assert.equal(JSON.parse(statsRoute.body).stats.totalReports, seedReports.length);
+});
+
+test("phoneId uses HMAC and never includes original sender", () => {
+  const first = generatePhoneId("+52 322 111 2233", { reporterIdSecret });
+  const second = generatePhoneId("+52 322 111 2233", { reporterIdSecret });
+  const differentSecret = generatePhoneId("+52 322 111 2233", {
+    reporterIdSecret: "another-test-reporter-secret"
+  });
+
+  assert.equal(first, second);
+  assert.notEqual(first, differentSecret);
+  assert.equal(first.includes("322"), false);
+  assert.equal(first.length, 64);
+  assert.throws(() => generatePhoneId("+52 322 111 2233"), /REPORTER_ID_SECRET/);
+});
+
+test("anonymous intake privacy acceptance stores mvp-1 without phone number", () => {
+  resetRuntimeReports();
+  const result = runIntake(intakeAction({ messageId: "privacy-001" }), {
+    now: "2026-07-13T10:00:00.000Z"
+  });
+  const sessions = loadReportIntakeSessions();
+  const stored = JSON.stringify(sessions);
+
+  assert.equal(result.ok, true);
+  assert.equal(result.reply.text.includes("Envía una foto"), true);
+  assert.equal(sessions[0].privacyNoticeVersion, PRIVACY_NOTICE_VERSION);
+  assert.equal(sessions[0].privacyAcknowledgedAt, "2026-07-13T10:00:00.000Z");
+  assert.equal(stored.includes("+52"), false);
+  assert.equal(stored.includes("322 000 0101"), false);
+  assert.equal(stored.includes("user-agent"), false);
+});
+
+test("photo followed by shared location completes anonymous report", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "a-privacy" }), { now: "2026-07-13T10:00:00.000Z" });
+  const photo = runIntake(intakePhoto({ messageId: "a-photo" }), {
+    now: "2026-07-13T10:01:00.000Z"
+  });
+  const completed = runIntake(intakeLocation({ messageId: "a-location" }), {
+    now: "2026-07-13T10:02:00.000Z"
+  });
+  const report = completed.report;
+
+  assert.equal(photo.report, undefined);
+  assert.equal(photo.reply.text, "Comparte la ubicación o escribe la calle, cruce, colonia o una referencia.");
+  assert.equal(completed.ok, true);
+  assert.equal(completed.reply.text.includes("Listo, recibimos tu reporte"), true);
+  assert.equal(completed.reply.text.includes("denuncia oficial"), true);
+  assert.equal(/report-local-|[a-f0-9]{64}|\+52|322 000/.test(completed.reply.text), false);
+  assert.equal(report.source, "whatsapp");
+  assert.equal(report.classificationStatus, "pending_classification");
+  assert.equal(report.category, "otro");
+  assert.equal(report.locationDetails.resolutionStatus, "exact");
+  assert.equal(report.locationDetails.confidence, "high");
+  assert.equal(report.locationDetails.source, "whatsapp_shared");
+  assert.equal(report.photoReference.mimeType, "image/jpeg");
+  assert.equal(listReports().some((item) => item.id === report.id), true);
+});
+
+test("shared location followed by photo completes anonymous report", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "b-privacy" }));
+  const location = runIntake(intakeLocation({ messageId: "b-location" }));
+  const completed = runIntake(intakePhoto({ messageId: "b-photo" }));
+
+  assert.equal(location.reply.text, "Ahora envía una foto del problema.");
+  assert.equal(completed.report.locationDetails.resolutionStatus, "exact");
+});
+
+test("photo followed by written streets completes with pending location", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "c-privacy" }));
+  runIntake(intakePhoto({ messageId: "c-photo" }));
+  const completed = runIntake(intakeText("Calle Juarez frente a la secundaria", {
+    messageId: "c-reference"
+  }));
+
+  assert.equal(completed.report.locationDetails.source, "written_reference");
+  assert.equal(completed.report.locationDetails.resolutionStatus, "pending");
+  assert.equal(completed.report.locationDetails.originalReference, "Calle Juarez frente a la secundaria");
+});
+
+test("written streets followed by photo completes anonymous report", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "d-privacy" }));
+  const text = runIntake(intakeText("Colonia Versalles cerca del parque", { messageId: "d-reference" }));
+  const completed = runIntake(intakePhoto({ messageId: "d-photo" }));
+
+  assert.equal(text.reply.text, "Ahora envía una foto del problema.");
+  assert.equal(completed.report.locationDetails.originalReference, "Colonia Versalles cerca del parque");
+});
+
+test("single required part does not complete report", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "e-privacy" }));
+  const photoOnly = runIntake(intakePhoto({ messageId: "e-photo" }));
+
+  assert.equal(photoOnly.report, undefined);
+  assert.equal(listReports().length, seedReports.length);
+});
+
+test("optional description updates same completed report without creating another", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "f-privacy" }), { now: "2026-07-13T10:00:00.000Z" });
+  runIntake(intakePhoto({ messageId: "f-photo" }), { now: "2026-07-13T10:01:00.000Z" });
+  const completed = runIntake(intakeLocation({ messageId: "f-location" }), {
+    now: "2026-07-13T10:02:00.000Z"
+  });
+  const described = runIntake(intakeText("<b>Hay vidrios cerca</b>", { messageId: "f-description" }), {
+    now: "2026-07-13T10:03:00.000Z"
+  });
+  const report = getReportById(completed.report.id);
+
+  assert.equal(described.reply.text, "Listo, agregamos ese detalle al mismo reporte.");
+  assert.equal(report.description, "<b>Hay vidrios cerca</b>");
+  assert.equal(listReports().filter((item) => item.intakeSource === "fast_anonymous_report").length, 1);
+});
+
+test("intake validates image mime, size and safe media id", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "g-privacy" }));
+  const svg = runIntake(intakePhoto({
+    messageId: "g-svg",
+    image: { mediaId: "photo-svg", mimeType: "image/svg+xml", sizeBytes: 1000 }
+  }));
+  const pathMedia = runIntake(intakePhoto({
+    messageId: "g-path",
+    image: { mediaId: "../secret", mimeType: "image/jpeg", sizeBytes: 1000 }
+  }));
+
+  assert.equal(svg.ok, false);
+  assert.equal(pathMedia.ok, false);
+  assert.equal(listReports().length, seedReports.length);
+});
+
+test("intake validates shared coordinates", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "h-privacy" }));
+  const invalid = runIntake(intakeLocation({
+    messageId: "h-location",
+    location: { latitude: 100, longitude: -200 }
+  }));
+
+  assert.equal(invalid.ok, false);
+  assert.equal(invalid.errors.some((error) => error.includes("latitude")), true);
+});
+
+test("message id idempotency prevents duplicate reports and repeated media/location processing", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "i-privacy" }));
+  const photo = intakePhoto({ messageId: "i-photo" });
+  runIntake(photo);
+  runIntake(photo);
+  const location = intakeLocation({ messageId: "i-location" });
+  const first = runIntake(location);
+  const second = runIntake(location);
+
+  assert.equal(first.report.id, second.report.id);
+  assert.equal(second.duplicate, true);
+  assert.equal(listReports().filter((report) => report.intakeSource === "fast_anonymous_report").length, 1);
+});
+
+test("sessions persist, one incomplete session is reused and expiration clears incomplete session", () => {
+  resetRuntimeReports();
+  runIntake(intakeAction({ messageId: "j-privacy" }), { now: "2026-07-13T10:00:00.000Z" });
+  runIntake(intakePhoto({ messageId: "j-photo" }), { now: "2026-07-13T10:01:00.000Z" });
+
+  assert.equal(loadReportIntakeSessions().length, 1);
+
+  const resumed = runIntake(intakeLocation({ messageId: "j-location" }), {
+    now: "2026-07-13T10:05:00.000Z"
+  });
+
+  assert.equal(resumed.report.locationDetails.resolutionStatus, "exact");
+
+  runIntake(intakeAction({
+    senderReference: "+52 322 000 0199",
+    messageId: "expired-privacy"
+  }), { now: "2026-07-13T11:00:00.000Z" });
+  runIntake(intakePhoto({
+    senderReference: "+52 322 000 0199",
+    messageId: "expired-photo"
+  }), { now: "2026-07-13T11:01:00.000Z" });
+  runIntake(intakeAction({
+    senderReference: "+52 322 000 0200",
+    messageId: "cleanup-trigger"
+  }), { now: "2026-07-13T11:30:00.000Z" });
+
+  assert.equal(
+    loadReportIntakeSessions().some((session) => session.processedMessages?.some((item) => item.messageId === "expired-photo")),
+    false
+  );
+});
+
+test("reference normalization handles accents, abbreviations and reversed crossings", () => {
+  assert.equal(normalizeReference("México y Fluvial"), normalizeReference("Fluvial y Mexico"));
+  assert.equal(normalizeReference("Avenida México con Fluvial"), normalizeReference("Av. Mexico y Fluvial"));
+  assert.equal(normalizeReference("Colonia Versalles"), normalizeReference("Col. versalles"));
+});
+
+test("haversine and grouping keep distant points out of local group", () => {
+  const base = { latitude: 20.6534, longitude: -105.2258 };
+  const near = { latitude: 20.65345, longitude: -105.22582 };
+  const far = { latitude: 20.7, longitude: -105.3 };
+  const distance = haversineMeters(base, near);
+  const groups = groupNearbyPoints([base, near, far], 150);
+
+  assert.equal(distance < 10, true);
+  assert.equal(groups.length, 2);
+  assert.equal(groups.some((group) => group.count === 2), true);
+});
+
+test("written location inference uses consistent local antecedents only", () => {
+  resetRuntimeReports();
+  createReport(validReportInput({
+    title: "Antecedente uno",
+    locationText: "Av Mexico y Fluvial",
+    evidenceCount: 1,
+    sensitiveDataConsent: true
+  }), {
+    id: "report-antecedent-001",
+    now: "2026-07-13T09:00:00.000Z",
+    source: "whatsapp",
+    extraFields: {
+      locationDetails: {
+        source: "whatsapp_shared",
+        originalReference: "Av Mexico y Fluvial",
+        normalizedReference: normalizeReference("Av Mexico y Fluvial"),
+        latitude: 20.6534,
+        longitude: -105.2258,
+        resolutionStatus: "exact",
+        confidence: "high"
+      }
+    }
+  });
+  createReport(validReportInput({
+    title: "Antecedente dos",
+    locationText: "Fluvial y Mexico",
+    evidenceCount: 1,
+    sensitiveDataConsent: true
+  }), {
+    id: "report-antecedent-002",
+    now: "2026-07-13T09:05:00.000Z",
+    source: "whatsapp",
+    extraFields: {
+      locationDetails: {
+        source: "whatsapp_shared",
+        originalReference: "Fluvial y Mexico",
+        normalizedReference: normalizeReference("Fluvial y Mexico"),
+        latitude: 20.65345,
+        longitude: -105.22582,
+        resolutionStatus: "exact",
+        confidence: "high"
+      }
+    }
+  });
+
+  const inferred = resolveWrittenLocation("México y Fluvial");
+  const unknown = resolveWrittenLocation("Calle larga sin colonia");
+
+  assert.equal(inferred.resolutionStatus, "inferred");
+  assert.equal(inferred.confidence, "high");
+  assert.equal(inferred.source, "inferred_from_reports");
+  assert.equal(inferred.supportingReportCount, 2);
+  assert.equal(unknown.resolutionStatus, "pending");
+  assert.equal(unknown.confidence, "unknown");
+});
+
+test("single or contradictory candidates do not invent coordinates", () => {
+  resetRuntimeReports();
+  createReport(validReportInput({
+    title: "Antecedente unico",
+    locationText: "Calle Unica y Parque",
+    evidenceCount: 1,
+    sensitiveDataConsent: true
+  }), {
+    id: "report-antecedent-single",
+    now: "2026-07-13T09:00:00.000Z",
+    source: "whatsapp",
+    extraFields: {
+      locationDetails: {
+        source: "whatsapp_shared",
+        originalReference: "Calle Unica y Parque",
+        normalizedReference: normalizeReference("Calle Unica y Parque"),
+        latitude: 20.1,
+        longitude: -105.1,
+        resolutionStatus: "exact",
+        confidence: "high"
+      }
+    }
+  });
+
+  const single = resolveWrittenLocation("Parque y Calle Unica");
+
+  assert.equal(single.resolutionStatus, "pending");
+  assert.equal(single.latitude, undefined);
+  assert.equal(single.confidence, "low");
+});
+
+test("rate limiting counts only completed reports and separates users", () => {
+  resetRuntimeReports();
+
+  function complete(senderReference, prefix, hour = "10") {
+    runIntake(intakeAction({ senderReference, messageId: `${prefix}-privacy` }), {
+      now: `2026-07-13T${hour}:00:00.000Z`
+    });
+    runIntake(intakePhoto({ senderReference, messageId: `${prefix}-photo` }), {
+      now: `2026-07-13T${hour}:01:00.000Z`
+    });
+    return runIntake(intakeLocation({ senderReference, messageId: `${prefix}-location` }), {
+      now: `2026-07-13T${hour}:02:00.000Z`
+    });
+  }
+
+  complete("+52 322 000 0300", "r1");
+  complete("+52 322 000 0300", "r2");
+  complete("+52 322 000 0300", "r3");
+  const limited = runIntake(intakeAction({
+    senderReference: "+52 322 000 0300",
+    messageId: "r4-privacy"
+  }), { now: "2026-07-13T10:20:00.000Z" });
+  const otherUser = complete("+52 322 000 0301", "other");
+  const released = runIntake(intakeAction({
+    senderReference: "+52 322 000 0300",
+    messageId: "r5-privacy"
+  }), { now: "2026-07-13T12:00:00.000Z" });
+
+  assert.equal(limited.rateLimited, true);
+  assert.equal(limited.reply.text.includes("Espera un poco"), true);
+  assert.equal(otherUser.ok, true);
+  assert.equal(released.rateLimited, undefined);
 });
 
 test("reports route returns all reports and report details", () => {

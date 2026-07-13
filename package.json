@@ -9,7 +9,8 @@
     "start": "node src/server/index.mjs",
     "lint": "node scripts/validate-project.mjs",
     "build": "node scripts/build-check.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "simulate:report-intake": "node scripts/simulate-report-intake.mjs"
   },
   "engines": {
     "node": ">=20"

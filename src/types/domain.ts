@@ -23,6 +23,25 @@ export type PrivacyNoticeVersion = "mvp-1";
 
 export type LocationPrecision = "approximate" | "precise";
 
+export type IntakeMessageType = "action" | "image" | "location" | "text";
+
+export type IntakeSessionState =
+  | "awaiting_privacy"
+  | "awaiting_photo_or_location"
+  | "awaiting_photo"
+  | "awaiting_location"
+  | "completed"
+  | "expired";
+
+export type IntakeLocationSource =
+  | "whatsapp_shared"
+  | "written_reference"
+  | "inferred_from_reports";
+
+export type LocationResolutionStatus = "exact" | "inferred" | "pending";
+
+export type LocationConfidence = "high" | "medium" | "low" | "unknown";
+
 export type LocationSource =
   | "shared_location"
   | "manual_text"
@@ -68,6 +87,15 @@ export interface LocalSeedReport {
   privacyAcknowledgedAt?: IsoDateTime;
   sensitiveDataConsent?: boolean;
   containsSensitiveOptionalData?: boolean;
+  classificationStatus?: "pending_classification" | "classified";
+  intakeChannel?: string;
+  intakeSource?: string;
+  phoneId?: string;
+  anonymousAlias?: string;
+  locationDetails?: IntakeLocationDetails;
+  photoReference?: IntakePhotoReference;
+  evidenceReferences?: IntakePhotoReference[];
+  locationResolutionSummary?: string;
 }
 
 export interface Reporter {
@@ -99,6 +127,50 @@ export interface Location {
   country: string;
   accuracyMeters?: number;
   source: LocationSource;
+}
+
+export interface IntakeLocationDetails {
+  source: IntakeLocationSource;
+  originalReference?: string;
+  normalizedReference?: string;
+  latitude?: number;
+  longitude?: number;
+  resolutionStatus: LocationResolutionStatus;
+  confidence: LocationConfidence;
+  resolvedAt?: IsoDateTime;
+  resolutionMethod?: string;
+  supportingReportCount?: number;
+}
+
+export interface IntakePhotoReference {
+  mediaId: string;
+  messageId: string;
+  mimeType: "image/jpeg" | "image/png" | "image/webp";
+  sizeBytes?: number;
+  receivedAt?: IsoDateTime;
+}
+
+export interface IncomingCitizenMessage {
+  provider: string;
+  senderReference: string;
+  messageId: string;
+  timestamp: IsoDateTime;
+  type: IntakeMessageType;
+  action?: { id: string };
+  image?: IntakePhotoReference;
+  location?: {
+    latitude: number;
+    longitude: number;
+    name?: string;
+    address?: string;
+  };
+  text?: { body: string };
+}
+
+export interface CitizenReply {
+  type: "text";
+  text: string;
+  quickActions?: Array<{ id: string; label: string }>;
 }
 
 export interface Status {

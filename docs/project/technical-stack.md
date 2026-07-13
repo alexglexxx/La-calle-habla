@@ -25,6 +25,7 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 - `npm run lint`: valida estructura, documentos y contratos minimos.
 - `npm run build`: ejecuta chequeo de runtime y constantes base.
 - `npm test`: ejecuta pruebas con Node test runner.
+- `npm run simulate:report-intake`: ejecuta simulador local del flujo expres anonimo sin conectar WhatsApp real.
 
 ## Estructura inicial
 
@@ -33,7 +34,7 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 - `src/server/report-detail-page.mjs`: vista auxiliar de detalle, cambio de estado, notas internas e historial.
 - `src/lib/`: constantes y logica compartida.
 - `src/data/`: seeds locales de categorias, estados y reportes.
-- `src/services/`: servicios internos de consulta y estadisticas.
+- `src/services/`: servicios internos de consulta, estadisticas, privacidad, historial e ingreso expres anonimo.
 - `data/runtime/`: persistencia local ignorada por Git para reportes creados en desarrollo.
 - `src/types/`: tipos de dominio en TypeScript.
 - `tests/`: pruebas de contratos.
@@ -50,6 +51,8 @@ Esta task no implementa:
 - Login.
 - IA.
 - Deploy.
+
+El contrato de ingreso expres es compatible con WhatsApp, pero no instala SDK, no crea webhook productivo, no descarga medios desde Meta y no llama servicios externos.
 
 ## Endpoints locales actuales
 
@@ -118,6 +121,34 @@ Todos los eventos incluyen `id`, `reportId`, `type`, `createdAt` y `actor: local
 
 Las notas internas se tratan como texto plano, se recortan con `trim`, rechazan contenido vacio y tienen limite de 500 caracteres. La interfaz escapa HTML antes de pintar notas.
 
+## Ingreso expres anonimo
+
+`src/services/report-intake-service.mjs` implementa el motor conversacional local independiente del proveedor.
+
+Capacidades:
+
+- Contrato normalizado `IncomingCitizenMessage` para `action`, `image`, `location` y `text`.
+- Respuesta normalizada `CitizenReply`.
+- Flujo Foto -> ubicacion compartida -> listo.
+- Flujo Foto -> referencia escrita -> listo.
+- Orden flexible: ubicacion o referencia tambien pueden llegar antes de la foto.
+- Descripcion opcional posterior dentro de una ventana breve.
+- Categoria interna pendiente de clasificacion sin preguntarla al ciudadano.
+- Sesiones temporales en `data/runtime/report-intake-sessions.json`.
+- Idempotencia por `messageId`.
+- Rate limiting local por `phoneId`.
+- Normalizacion deterministica de calles y referencias.
+- Inferencia local de ubicacion usando reportes anteriores con coordenadas.
+- Distancia Haversine y agrupacion en radio inicial de 150 metros.
+
+La identidad pseudonima se genera con:
+
+```text
+phoneId = HMAC-SHA256(REPORTER_ID_SECRET, normalizedWhatsAppSender)
+```
+
+`REPORTER_ID_SECRET` debe estar en variables de entorno y no debe versionarse. Si falta, el motor falla de forma segura. Las pruebas y el simulador inyectan un secreto ficticio.
+
 ## Persistencia local
 
 Los reportes creados por `POST /api/reports` se guardan en `data/runtime/reports.json`.
@@ -126,7 +157,11 @@ Los overrides de estado se guardan en `data/runtime/report-overrides.json`.
 
 El historial local se guarda en `data/runtime/report-history.json`.
 
+Las sesiones del flujo expres anonimo se guardan en `data/runtime/report-intake-sessions.json`.
+
 Los archivos runtime estan ignorados por Git porque pueden contener datos variables de desarrollo. Las pruebas usan `LCH_RUNTIME_REPORTS_FILE`, `LCH_REPORT_OVERRIDES_FILE` y `LCH_REPORT_HISTORY_FILE` para aislar datos temporales.
+
+Las pruebas del ingreso expres tambien usan `LCH_REPORT_INTAKE_SESSIONS_FILE` para aislar sesiones temporales.
 
 ## Criterio para cambiar de stack
 

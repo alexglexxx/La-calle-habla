@@ -186,13 +186,40 @@ Resultado:
 - Detalle administrativo identifica datos sensibles y registros historicos sin consentimiento versionado.
 - Auditoria en `docs/audits/task-009-privacy-consent-retention.md`.
 
-## TASK 010 sugerida: Proteccion local de administracion
+## TASK 010 completada: Reporte expres anonimo con foto y ubicacion
+
+Objetivo:
+
+- Construir el flujo ciudadano central compatible con WhatsApp sin conectar todavia Meta ni un webhook productivo.
+- Permitir reportar con foto y ubicacion compartida o referencia escrita, en cualquier orden.
+- Mantener anonimato operativo dentro de La Calle Habla mediante `phoneId` pseudonimo con HMAC.
+- Agregar sesiones temporales, idempotencia, rate limiting, resolucion local de referencias y simulador reproducible.
+
+Validar:
+
+- Que Foto -> ubicacion -> listo y Foto -> calles -> listo funcionen sin tercer paso obligatorio.
+- Que descripcion y categoria no sean obligatorias para el ciudadano.
+- Que no se guarde el numero original ni se muestre `phoneId` completo.
+- Que los reportes aparezcan en `/admin` con alias anonimo y ubicacion exacta, inferida o pendiente.
+
+Resultado:
+
+- Contrato normalizado `IncomingCitizenMessage` y respuesta `CitizenReply`.
+- Servicio `src/services/report-intake-service.mjs` independiente del proveedor.
+- Sesiones persistentes en `data/runtime/report-intake-sessions.json`, ignorado por Git.
+- `phoneId` generado con HMAC-SHA256 y `REPORTER_ID_SECRET`.
+- Idempotencia por `messageId` y rate limiting local por `phoneId`.
+- Normalizacion determinista de referencias, Haversine y agrupacion local de antecedentes.
+- Simulador `npm run simulate:report-intake`.
+- Auditoria en `docs/audits/task-010-fast-anonymous-report-intake.md`.
+
+## TASK 011 sugerida: Proteccion local de administracion
 
 Objetivo:
 
 - Definir y aplicar criterios minimos de acceso local a `/admin` antes de exponer la administracion fuera de localhost.
 - Mantener el alcance sin login productivo complejo hasta que exista decision documentada.
-- Reducir riesgo de acceso accidental a reportes runtime, telefono, ubicacion, evidencia e historial.
+- Reducir riesgo de acceso accidental a reportes runtime, telefono, ubicacion, evidencia, historial y sesiones de ingreso.
 
 Validar:
 

@@ -404,19 +404,32 @@ export function renderReportDetailPage() {
           (report.sensitiveDataConsent ? "si" : "no requerido/no otorgado") + ".";
       }
 
+      function classificationLabel(report) {
+        return report.classificationStatus === "pending_classification"
+          ? "Categoría pendiente"
+          : categoryName(report.category);
+      }
+
       function renderReport() {
         byId("report-title").textContent = report.title;
         byId("report-chips").innerHTML =
-          '<span class="chip">' + escapeHtml(categoryName(report.category)) + '</span>' +
+          '<span class="chip">' + escapeHtml(classificationLabel(report)) + '</span>' +
           '<span class="chip">' + escapeHtml(labels.status[report.status] || report.status) + '</span>' +
           '<span class="chip">' + escapeHtml(labels.priority[report.priority] || report.priority) + '</span>' +
           '<span class="chip">' + escapeHtml(labels.source[report.source] || report.source) + '</span>';
         byId("report-meta").innerHTML =
           '<div><strong>Descripcion:</strong> ' + escapeHtml(report.description) + '</div>' +
-          '<div><strong>Categoria:</strong> ' + escapeHtml(categoryName(report.category)) + '</div>' +
+          '<div><strong>Categoria:</strong> ' + escapeHtml(classificationLabel(report)) + '</div>' +
           '<div><strong>Estado actual:</strong> ' + escapeHtml(statusName(report.status)) + '</div>' +
           '<div><strong>Prioridad:</strong> ' + escapeHtml(labels.priority[report.priority] || report.priority) + '</div>' +
           '<div><strong>Ubicacion:</strong> ' + escapeHtml(report.locationText) + ' ' + (report.locationPrecision === "precise" ? '<span class="sensitive-tag">Dato sensible</span>' : '') + '</div>' +
+          (report.locationDetails ? '<div><strong>Origen ubicacion:</strong> ' + escapeHtml(report.locationDetails.source) + '</div>' : '') +
+          (report.locationDetails ? '<div><strong>Resolucion ubicacion:</strong> ' + escapeHtml(report.locationDetails.resolutionStatus) + ' · Confianza: ' + escapeHtml(report.locationDetails.confidence) + '</div>' : '') +
+          (Number.isFinite(report.locationDetails?.latitude) ? '<div><strong>Coordenadas:</strong> ' + escapeHtml(report.locationDetails.latitude) + ', ' + escapeHtml(report.locationDetails.longitude) + '</div>' : '') +
+          (report.locationDetails?.supportingReportCount ? '<div><strong>Reportes relacionados:</strong> ' + escapeHtml(report.locationDetails.supportingReportCount) + '</div>' : '') +
+          (report.locationResolutionSummary ? '<div><strong>Nota ubicacion:</strong> ' + escapeHtml(report.locationResolutionSummary) + '</div>' : '') +
+          (report.anonymousAlias ? '<div><strong>Alias anonimo:</strong> ' + escapeHtml(report.anonymousAlias) + '</div>' : '') +
+          (report.photoReference ? '<div><strong>Evidencia:</strong> Fotografia disponible (' + escapeHtml(report.photoReference.mimeType) + ')</div>' : '') +
           '<div><strong>Colonia:</strong> ' + escapeHtml(report.neighborhood || "Sin colonia") + '</div>' +
           '<div><strong>Zona:</strong> ' + escapeHtml(report.zone || "Sin zona") + '</div>' +
           (report.contactPhone ? '<div><strong>Telefono:</strong> ' + escapeHtml(report.contactPhone) + ' <span class="sensitive-tag">Dato sensible</span></div>' : '') +
