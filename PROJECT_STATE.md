@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: Historial local de seguimiento interno
+Estado: Privacidad operativa MVP y consentimiento local
 
 ## Objetivo MVP
 
@@ -16,7 +16,7 @@ El MVP debe validar el flujo ciudadano y administrativo antes de integrar WhatsA
 
 ## Estado operativo actual
 
-El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local, permite cambiar estado interno y conserva historial local por reporte:
+El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local, permite cambiar estado interno, conserva historial local por reporte y aplica una politica operativa provisional de privacidad del MVP:
 
 - Categorias.
 - Estados.
@@ -28,6 +28,10 @@ El proyecto ya expone datos locales de lectura con seeds, permite crear reportes
 - Cambios de estado internos con `PATCH /api/reports?id=REPORT_ID`.
 - Notas internas con `PATCH /api/reports?id=REPORT_ID`.
 - Historial interno cronologico con `GET /api/report-history?id=REPORT_ID`.
+- Aviso corto de privacidad en el formulario local.
+- Reconocimiento versionado `mvp-1` para reportes nuevos.
+- Consentimiento explicito para telefono, ubicacion precisa o evidencia.
+- Clasificacion y retencion provisional documentadas en `docs/project/privacy-and-data-retention.md`.
 
 Endpoints disponibles:
 
@@ -62,7 +66,7 @@ La decision esta documentada en `docs/project/technical-stack.md`.
 
 ## Proxima task recomendada
 
-TASK 009: criterios de privacidad y retencion para datos sensibles antes de integrar canales reales o exponer administracion fuera de local.
+TASK 010: proteccion local de `/admin` y criterios de acceso antes de exponer administracion fuera de localhost.
 
 ## Riesgos
 
@@ -81,9 +85,8 @@ TASK 009: criterios de privacidad y retencion para datos sensibles antes de inte
 - Framework web, si el MVP lo requiere.
 - Proveedor de WhatsApp.
 - Proveedor de mapas.
-- Politica de privacidad.
+- Aviso de privacidad legal definitivo.
 - Criterios de anonimato.
 - Definicion exacta de roles administrativos.
 - Si el MVP continuara con JSON local o migrara a base de datos.
-- Si la administracion local requiere proteccion antes de exponerse fuera de localhost.
-- Politica de retencion de historial interno y notas.
+- Politica legal de retencion y eliminacion antes de produccion.

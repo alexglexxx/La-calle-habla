@@ -29,7 +29,7 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 ## Estructura inicial
 
 - `src/server/`: servidor local minimo.
-- `src/server/admin-page.mjs`: vista administrativa local servida como HTML, con detalle, cambio de estado, notas internas e historial.
+- `src/server/admin-page.mjs`: vista administrativa local servida como HTML, con detalle, cambio de estado, notas internas, historial y aviso operativo de privacidad.
 - `src/server/report-detail-page.mjs`: vista auxiliar de detalle, cambio de estado, notas internas e historial.
 - `src/lib/`: constantes y logica compartida.
 - `src/data/`: seeds locales de categorias, estados y reportes.
@@ -72,6 +72,34 @@ Esta task no implementa:
 `GET /admin` sirve HTML con CSS y JavaScript embebidos. La vista consume los endpoints locales existentes para cargar reportes, categorias, estados, estadisticas, revisar detalle, cambiar estado interno por `PATCH /api/reports?id=REPORT_ID`, agregar notas internas, consultar historial por `GET /api/report-history?id=REPORT_ID` y crear reportes por `POST /api/reports`.
 
 No usa dependencias externas, CDN, fuentes remotas ni framework frontend.
+
+El formulario de creacion local muestra un aviso corto de privacidad, una explicacion ampliada local y casillas no premarcadas para:
+
+- reconocimiento del aviso operativo `mvp-1`;
+- consentimiento para datos opcionales sensibles cuando se proporciona telefono, ubicacion precisa o evidencia.
+
+## Privacidad operativa MVP
+
+La version vigente del aviso operativo esta centralizada en `src/services/report-service.mjs` como `PRIVACY_NOTICE_VERSION` y actualmente vale:
+
+```text
+mvp-1
+```
+
+`POST /api/reports` requiere para reportes nuevos:
+
+- `privacyNoticeVersion: "mvp-1"`;
+- `privacyAcknowledged: true`.
+
+El servidor genera `privacyAcknowledgedAt` usando su hora local de ejecucion. Si el cliente envia un timestamp, no se usa como fuente confiable.
+
+`sensitiveDataConsent` se exige solo cuando se envia alguno de estos datos opcionales:
+
+- `contactPhone`;
+- `locationPrecision: "precise"`;
+- `evidenceCount` mayor que `0`.
+
+Los reportes seed y reportes runtime historicos sin campos de privacidad siguen siendo legibles.
 
 ## Cambios de estado locales
 

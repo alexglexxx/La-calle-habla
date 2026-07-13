@@ -37,7 +37,7 @@ Stack inicial:
 - Pruebas con `node --test`.
 - Sin dependencias externas.
 
-Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle, cambio de estado interno, notas internas e historial local por reporte.
+Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle, cambio de estado interno, notas internas, historial local por reporte y aviso operativo de privacidad del MVP.
 
 Todavia no hay integracion real con WhatsApp, login ni dashboard productivo.
 
@@ -79,8 +79,11 @@ curl -sS -X POST http://127.0.0.1:3001/api/reports \
     "locationText": "Calle principal frente a tienda de abarrotes",
     "neighborhood": "Versalles",
     "priority": "high",
-    "evidenceCount": 1,
-    "citizenAlias": "Vecino prueba"
+    "evidenceCount": 0,
+    "citizenAlias": "Vecino prueba",
+    "privacyNoticeVersion": "mvp-1",
+    "privacyAcknowledged": true,
+    "sensitiveDataConsent": false
   }'
 ```
 
@@ -92,7 +95,7 @@ Panel local:
 http://127.0.0.1:3001/admin
 ```
 
-La vista permite filtrar reportes, revisar contadores, seleccionar un reporte, ver su detalle, cambiar su estado interno, agregar notas internas, revisar historial interno y crear reportes locales desde navegador.
+La vista permite filtrar reportes, revisar contadores, seleccionar un reporte, ver su detalle, cambiar su estado interno, agregar notas internas, revisar historial interno y crear reportes locales desde navegador. El formulario muestra un aviso corto de privacidad, una explicacion ampliada local y casillas no premarcadas para reconocimiento del aviso y consentimiento de datos opcionales sensibles.
 
 El detalle local permite revisar un reporte, cambiar su estado interno, agregar notas internas y consultar una linea de tiempo de seguimiento. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, archivo ignorado por Git. El historial se guarda en `data/runtime/report-history.json`, archivo ignorado por Git.
 
@@ -119,6 +122,27 @@ curl -sS 'http://127.0.0.1:3001/api/report-history?id=report-pv-001'
 ```
 
 `PATCH /api/reports?id=REPORT_ID` solo acepta `status` y `note`. No permite editar titulo, categoria, ubicacion, origen, fechas, prioridad ni evidencias. Las notas tienen limite de 500 caracteres, se guardan como seguimiento interno y no son una respuesta oficial al ciudadano.
+
+## Privacidad MVP
+
+La politica operativa provisional esta en:
+
+- `docs/project/privacy-and-data-retention.md`
+
+Version vigente del aviso operativo:
+
+```text
+mvp-1
+```
+
+Para reportes nuevos, `POST /api/reports` requiere:
+
+- `privacyNoticeVersion: "mvp-1"`
+- `privacyAcknowledged: true`
+
+El servidor genera `privacyAcknowledgedAt`; no confia en timestamps enviados por cliente.
+
+`sensitiveDataConsent: true` solo se exige cuando el reporte incluye telefono, ubicacion precisa o evidencia. Estos datos siguen siendo opcionales. Esta politica no es un aviso legal definitivo y requiere revision legal antes de operar con datos ciudadanos reales o produccion.
 
 ## Como continuar
 

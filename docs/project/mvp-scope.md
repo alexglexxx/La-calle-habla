@@ -11,6 +11,8 @@ El MVP minimo debe permitir:
 - Revisar reportes en una vista administrativa simple.
 - Cambiar estados basicos del reporte.
 - Consultar reportes por categoria, fecha, estado y zona.
+- Mostrar aviso operativo de privacidad antes de crear reportes locales.
+- Registrar reconocimiento versionado del aviso para reportes nuevos.
 - Visualizar una base inicial de reportes en formato lista y, si el stack ya lo permite, mapa simple.
 
 ## Flujo ciudadano inicial
@@ -42,6 +44,7 @@ El flujo administrativo inicial no debe intentar reemplazar un sistema gubername
 - Ubicacion como coordenadas o texto aproximado.
 - Vista administrativa basica.
 - Exportacion simple o consulta basica de datos si aporta validacion.
+- Politica operativa provisional de privacidad y retencion para pruebas locales.
 
 ## Que queda fuera del MVP
 
@@ -54,6 +57,8 @@ El flujo administrativo inicial no debe intentar reemplazar un sistema gubername
 - Automatizaciones politicas.
 - Pagos.
 - Deploy productivo.
+- Aviso de privacidad legal definitivo sin revision legal.
+- Captura obligatoria de telefono, ubicacion precisa o evidencia.
 
 ## Fase 2
 

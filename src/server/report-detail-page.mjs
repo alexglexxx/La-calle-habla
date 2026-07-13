@@ -185,6 +185,28 @@ export function renderReportDetailPage() {
         font-weight: 800;
       }
 
+      .admin-warning {
+        margin: 0 0 12px;
+        padding: 10px 12px;
+        border: 1px solid #dec59c;
+        border-radius: 8px;
+        background: #fff8e8;
+        color: #563907;
+        font-weight: 800;
+      }
+
+      .sensitive-tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: #fff2d8;
+        color: #654009;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
       .history-warning,
       .help {
         color: var(--muted);
@@ -256,6 +278,7 @@ export function renderReportDetailPage() {
       <div class="layout">
         <section>
           <h2 id="report-title">Cargando reporte...</h2>
+          <p class="admin-warning">Consulta únicamente los datos necesarios para revisar el reporte. No copies información personal a notas internas.</p>
           <div id="report-chips" class="chips"></div>
           <div id="report-meta" class="meta"></div>
         </section>
@@ -371,6 +394,16 @@ export function renderReportDetailPage() {
         }).format(new Date(value));
       }
 
+      function privacyStatus(report) {
+        if (!report.privacyNoticeVersion) {
+          return "Registro histórico sin consentimiento versionado";
+        }
+
+        return "Aviso " + report.privacyNoticeVersion + " reconocido el " +
+          formatDate(report.privacyAcknowledgedAt) + ". Consentimiento sensible: " +
+          (report.sensitiveDataConsent ? "si" : "no requerido/no otorgado") + ".";
+      }
+
       function renderReport() {
         byId("report-title").textContent = report.title;
         byId("report-chips").innerHTML =
@@ -383,11 +416,13 @@ export function renderReportDetailPage() {
           '<div><strong>Categoria:</strong> ' + escapeHtml(categoryName(report.category)) + '</div>' +
           '<div><strong>Estado actual:</strong> ' + escapeHtml(statusName(report.status)) + '</div>' +
           '<div><strong>Prioridad:</strong> ' + escapeHtml(labels.priority[report.priority] || report.priority) + '</div>' +
-          '<div><strong>Ubicacion:</strong> ' + escapeHtml(report.locationText) + '</div>' +
+          '<div><strong>Ubicacion:</strong> ' + escapeHtml(report.locationText) + ' ' + (report.locationPrecision === "precise" ? '<span class="sensitive-tag">Dato sensible</span>' : '') + '</div>' +
           '<div><strong>Colonia:</strong> ' + escapeHtml(report.neighborhood || "Sin colonia") + '</div>' +
           '<div><strong>Zona:</strong> ' + escapeHtml(report.zone || "Sin zona") + '</div>' +
+          (report.contactPhone ? '<div><strong>Telefono:</strong> ' + escapeHtml(report.contactPhone) + ' <span class="sensitive-tag">Dato sensible</span></div>' : '') +
           '<div><strong>Alias ciudadano:</strong> ' + escapeHtml(report.citizenAlias || "Ciudadano anonimo") + '</div>' +
-          '<div><strong>Evidencias:</strong> ' + escapeHtml(report.evidenceCount) + '</div>' +
+          '<div><strong>Evidencias:</strong> ' + escapeHtml(report.evidenceCount) + (Number(report.evidenceCount) > 0 ? ' <span class="sensitive-tag">Dato sensible</span>' : '') + '</div>' +
+          '<div><strong>Privacidad:</strong> ' + escapeHtml(privacyStatus(report)) + '</div>' +
           '<div><strong>Origen:</strong> ' + escapeHtml(labels.source[report.source] || report.source) + '</div>' +
           '<div><strong>Fecha de reporte:</strong> ' + escapeHtml(formatDate(report.createdAt)) + '</div>' +
           '<div><strong>Ultima actualizacion:</strong> ' + escapeHtml(formatDate(report.updatedAt)) + '</div>' +

@@ -19,6 +19,10 @@ export type ReportHistoryEventType = "status_change" | "internal_note";
 
 export type ReportHistoryActor = "local_admin";
 
+export type PrivacyNoticeVersion = "mvp-1";
+
+export type LocationPrecision = "approximate" | "precise";
+
 export type LocationSource =
   | "shared_location"
   | "manual_text"
@@ -57,6 +61,13 @@ export interface LocalSeedReport {
   source: ReportSource;
   evidenceCount: number;
   citizenAlias: string;
+  contactPhone?: string;
+  locationPrecision?: LocationPrecision;
+  privacyNoticeVersion?: PrivacyNoticeVersion;
+  privacyAcknowledged?: boolean;
+  privacyAcknowledgedAt?: IsoDateTime;
+  sensitiveDataConsent?: boolean;
+  containsSensitiveOptionalData?: boolean;
 }
 
 export interface Reporter {

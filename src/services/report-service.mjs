@@ -12,9 +12,29 @@ import {
 
 const ALLOWED_PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
 const FORBIDDEN_CREATE_FIELDS = ["id", "status", "createdAt", "updatedAt"];
+const ALLOWED_CREATE_FIELDS = new Set([
+  "title",
+  "description",
+  "category",
+  "locationText",
+  "neighborhood",
+  "zone",
+  "source",
+  "priority",
+  "evidenceCount",
+  "citizenAlias",
+  "contactPhone",
+  "locationPrecision",
+  "privacyNoticeVersion",
+  "privacyAcknowledged",
+  "privacyAcknowledgedAt",
+  "sensitiveDataConsent"
+]);
+const ALLOWED_LOCATION_PRECISIONS = new Set(["approximate", "precise"]);
 const ALLOWED_STATUS_UPDATE_FIELDS = new Set(["status", "note"]);
 const HISTORY_EVENT_TYPES = new Set(["status_change", "internal_note"]);
 const HISTORY_ACTOR = "local_admin";
+export const PRIVACY_NOTICE_VERSION = "mvp-1";
 export const INTERNAL_NOTE_MAX_LENGTH = 500;
 
 function normalize(value) {
@@ -23,6 +43,10 @@ function normalize(value) {
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function hasText(value) {
+  return typeof value === "string" && value.trim().length > 0;
 }
 
 function categoryMatches(categoryRecord, category) {
@@ -126,6 +150,10 @@ function validateLength(errors, field, value, min, max) {
   }
 }
 
+function validatePhone(value) {
+  return /^[0-9 +().-]{7,30}$/.test(value);
+}
+
 export function validateReportInput(input) {
   const errors = [];
 
@@ -150,6 +178,15 @@ export function validateReportInput(input) {
     }
   }
 
+  for (const field of Object.keys(input)) {
+    if (!ALLOWED_CREATE_FIELDS.has(field) && !FORBIDDEN_CREATE_FIELDS.includes(field)) {
+      errors.push({
+        field,
+        message: `${field} is not accepted for local report creation.`
+      });
+    }
+  }
+
   const title = cleanString(input.title);
   const description = cleanString(input.description);
   const categoryValue = cleanString(input.category);
@@ -157,10 +194,16 @@ export function validateReportInput(input) {
   const neighborhood = cleanString(input.neighborhood);
   const zone = cleanString(input.zone);
   const citizenAlias = cleanString(input.citizenAlias) || "Ciudadano anonimo";
+  const contactPhone = cleanString(input.contactPhone);
   const source = cleanString(input.source) || "manual";
   const priority = cleanString(input.priority) || "normal";
+  const locationPrecision = cleanString(input.locationPrecision) || "approximate";
   const evidenceCount = input.evidenceCount === undefined ? 0 : input.evidenceCount;
   const category = findCategory(categoryValue);
+  const hasPhone = Boolean(contactPhone);
+  const hasPreciseLocation = locationPrecision === "precise";
+  const hasEvidence = Number.isInteger(evidenceCount) && evidenceCount > 0;
+  const hasSensitiveOptionalData = hasPhone || hasPreciseLocation || hasEvidence;
 
   if (!title) {
     errors.push({ field: "title", message: "title is required." });
@@ -201,6 +244,20 @@ export function validateReportInput(input) {
     validateLength(errors, "zone", zone, 2, 120);
   }
 
+  if (contactPhone && !validatePhone(contactPhone)) {
+    errors.push({
+      field: "contactPhone",
+      message: "contactPhone must be a local optional phone reference with 7 to 30 valid characters."
+    });
+  }
+
+  if (!ALLOWED_LOCATION_PRECISIONS.has(locationPrecision)) {
+    errors.push({
+      field: "locationPrecision",
+      message: "locationPrecision must be approximate or precise."
+    });
+  }
+
   if (!ALLOWED_PRIORITIES.has(priority)) {
     errors.push({
       field: "priority",
@@ -212,6 +269,41 @@ export function validateReportInput(input) {
     errors.push({
       field: "evidenceCount",
       message: "evidenceCount must be an integer from 0 to 20."
+    });
+  }
+
+  if (input.privacyAcknowledged !== true) {
+    errors.push({
+      field: "privacyAcknowledged",
+      message: "privacyAcknowledged must be true before creating a local report."
+    });
+  }
+
+  if (input.privacyNoticeVersion !== PRIVACY_NOTICE_VERSION) {
+    errors.push({
+      field: "privacyNoticeVersion",
+      message: `privacyNoticeVersion must be ${PRIVACY_NOTICE_VERSION}.`
+    });
+  }
+
+  if (Object.hasOwn(input, "privacyAcknowledgedAt") && !hasText(input.privacyAcknowledgedAt)) {
+    errors.push({
+      field: "privacyAcknowledgedAt",
+      message: "privacyAcknowledgedAt must not be an empty value when provided."
+    });
+  }
+
+  if (Object.hasOwn(input, "sensitiveDataConsent") && typeof input.sensitiveDataConsent !== "boolean") {
+    errors.push({
+      field: "sensitiveDataConsent",
+      message: "sensitiveDataConsent must be true or false."
+    });
+  }
+
+  if (hasSensitiveOptionalData && input.sensitiveDataConsent !== true) {
+    errors.push({
+      field: "sensitiveDataConsent",
+      message: "sensitiveDataConsent must be true when phone, precise location or evidence is provided."
     });
   }
 
@@ -248,7 +340,13 @@ export function validateReportInput(input) {
       zone: zone || neighborhood,
       source: "manual",
       evidenceCount,
-      citizenAlias
+      citizenAlias,
+      ...(contactPhone ? { contactPhone } : {}),
+      locationPrecision,
+      privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+      privacyAcknowledged: true,
+      sensitiveDataConsent: hasSensitiveOptionalData ? true : input.sensitiveDataConsent === true,
+      containsSensitiveOptionalData: hasSensitiveOptionalData
     }
   };
 }
@@ -545,6 +643,7 @@ export function createReport(input, options = {}) {
   const report = {
     id: options.id || nextReportId(),
     ...validation.value,
+    privacyAcknowledgedAt: now,
     status: "new",
     createdAt: now,
     updatedAt: now

@@ -15,6 +15,7 @@ import {
   listReports,
   listReportsByCategory,
   listReportsByStatus,
+  PRIVACY_NOTICE_VERSION,
   updateReportStatus,
   validateStatusUpdateInput,
   validateReportInput,
@@ -54,8 +55,11 @@ function validReportInput(overrides = {}) {
     locationText: "Calle principal frente a tienda de abarrotes",
     neighborhood: "Versalles",
     priority: "high",
-    evidenceCount: 1,
+    evidenceCount: 0,
     citizenAlias: "Vecino prueba",
+    privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+    privacyAcknowledged: true,
+    sensitiveDataConsent: false,
     ...overrides
   };
 }
@@ -178,6 +182,28 @@ test("admin route returns local HTML view", () => {
   assert.equal(route.body.includes("La Calle Habla"), true);
   assert.equal(route.body.includes("Panel local de reportes ciudadanos"), true);
   assert.equal(route.body.includes("No es un sistema oficial de gobierno"), true);
+  assert.equal(
+    route.body.includes(
+      "Usaremos la información únicamente para registrar y revisar este reporte dentro de La Calle Habla."
+    ),
+    true
+  );
+  assert.equal(route.body.includes("enviar un reporte no garantiza su resolución"), true);
+  assert.equal(route.body.includes("Ver explicación ampliada de privacidad"), true);
+  assert.equal(route.body.includes('id="privacy-acknowledged"'), true);
+  assert.equal(route.body.includes('id="sensitive-data-consent"'), true);
+  assert.equal(route.body.includes('id="privacy-acknowledged" name="privacyAcknowledged" type="checkbox" checked'), false);
+  assert.equal(route.body.includes("Telefono de contacto (opcional sensible)"), true);
+  assert.equal(route.body.includes("Precision de ubicacion"), true);
+  assert.equal(route.body.includes("Evidencias (opcional sensible)"), true);
+  assert.equal(route.body.includes("Debes reconocer el aviso antes de enviar el reporte."), true);
+  assert.equal(route.body.includes("privacyNoticeVersion"), true);
+  assert.equal(route.body.includes("maskPhone(report.contactPhone)"), true);
+  assert.equal(route.body.includes("Dato sensible"), true);
+  assert.equal(
+    route.body.includes("Consulta únicamente los datos necesarios para revisar el reporte."),
+    true
+  );
   assert.equal(route.body.includes('id="report-form"'), true);
   assert.equal(route.body.includes('id="report-detail-panel"'), true);
   assert.equal(route.body.includes('id="status-select"'), true);
@@ -218,6 +244,23 @@ test("report detail route returns local HTML view", () => {
   assert.equal(route.body.includes('method: "PATCH"'), true);
   assert.equal(route.body.includes("Este cambio solo actualiza el seguimiento interno local"), true);
   assert.equal(route.body.includes("No es un sistema oficial de gobierno"), true);
+  assert.equal(route.body.includes("Registro histórico sin consentimiento versionado"), true);
+  assert.equal(route.body.includes("Dato sensible"), true);
+  assert.equal(
+    route.body.includes("Consulta únicamente los datos necesarios para revisar el reporte."),
+    true
+  );
+});
+
+test("admin privacy UI is mobile-first and avoids horizontal overflow structures", () => {
+  resetRuntimeReports();
+  const route = resolveRoute("GET", "/admin");
+
+  assert.equal(route.body.includes('name="viewport" content="width=device-width, initial-scale=1"'), true);
+  assert.equal(route.body.includes("box-sizing: border-box"), true);
+  assert.equal(route.body.includes("width: min(1180px, 100%)"), true);
+  assert.equal(route.body.includes("grid-template-columns: repeat(2, minmax(0, 1fr))"), true);
+  assert.equal(route.body.includes("overflow-x"), false);
 });
 
 test("admin route does not break health or API routes", () => {
@@ -244,6 +287,35 @@ test("reports route returns all reports and report details", () => {
   assert.equal(allReportsBody.count, seedReports.length);
   assert.equal(detailRoute.statusCode, 200);
   assert.equal(detailBody.report.category, "fuga-de-agua");
+});
+
+test("historical runtime reports without privacy fields remain readable", () => {
+  resetRuntimeReports([
+    {
+      id: "report-local-historical-001",
+      title: "Reporte historico local",
+      description: "Reporte creado antes del aviso versionado de privacidad.",
+      category: "bache",
+      status: "new",
+      priority: "normal",
+      locationText: "Referencia general historica",
+      neighborhood: "Centro",
+      zone: "Centro",
+      createdAt: "2026-07-10T10:00:00.000Z",
+      updatedAt: "2026-07-10T10:00:00.000Z",
+      source: "manual",
+      evidenceCount: 0,
+      citizenAlias: "Vecino historico"
+    }
+  ]);
+
+  const report = getReportById("report-local-historical-001");
+  const route = resolveRoute("GET", "/api/reports?id=report-local-historical-001");
+  const body = JSON.parse(route.body);
+
+  assert.equal(report.privacyNoticeVersion, undefined);
+  assert.equal(route.statusCode, 200);
+  assert.equal(body.report.id, "report-local-historical-001");
 });
 
 test("updateReportStatus persists local status override for seed reports without changing seed", () => {
@@ -665,9 +737,173 @@ test("createReport creates a valid local report and persists it", () => {
   assert.equal(result.report.status, "new");
   assert.equal(result.report.source, "manual");
   assert.equal(result.report.category, "bache");
+  assert.equal(result.report.privacyNoticeVersion, PRIVACY_NOTICE_VERSION);
+  assert.equal(result.report.privacyAcknowledged, true);
+  assert.equal(result.report.privacyAcknowledgedAt, "2026-07-09T10:00:00.000Z");
+  assert.equal(result.report.sensitiveDataConsent, false);
   assert.equal(loadRuntimeReports().length, 1);
   assert.equal(listReports().length, seedReports.length + 1);
   assert.equal(getReportById("report-local-test-001")?.title, "Bache nuevo frente a tienda");
+});
+
+test("createReport generates trusted privacy acknowledgement timestamp", () => {
+  resetRuntimeReports();
+  const result = createReport(
+    validReportInput({
+      privacyAcknowledgedAt: "1999-01-01T00:00:00.000Z"
+    }),
+    {
+      id: "report-local-privacy-time-001",
+      now: "2026-07-12T15:30:00.000Z"
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.report.privacyAcknowledgedAt, "2026-07-12T15:30:00.000Z");
+});
+
+test("createReport rejects missing acknowledgement and invalid privacy version", () => {
+  resetRuntimeReports();
+  const missingAcknowledgement = createReport(
+    validReportInput({
+      privacyAcknowledged: false
+    })
+  );
+  const invalidVersion = createReport(
+    validReportInput({
+      privacyNoticeVersion: "old-version"
+    })
+  );
+
+  assert.equal(missingAcknowledgement.ok, false);
+  assert.equal(missingAcknowledgement.errors.some((error) => error.field === "privacyAcknowledged"), true);
+  assert.equal(invalidVersion.ok, false);
+  assert.equal(invalidVersion.errors.some((error) => error.field === "privacyNoticeVersion"), true);
+});
+
+test("sensitive optional data requires explicit consent only when present", () => {
+  resetRuntimeReports();
+  const noSensitive = createReport(validReportInput({ evidenceCount: 0, sensitiveDataConsent: false }), {
+    id: "report-local-no-sensitive-001",
+    now: "2026-07-12T16:00:00.000Z"
+  });
+  const withPhoneNoConsent = createReport(
+    validReportInput({
+      contactPhone: "322 123 4567",
+      sensitiveDataConsent: false
+    })
+  );
+  const withPreciseLocationNoConsent = createReport(
+    validReportInput({
+      locationPrecision: "precise",
+      sensitiveDataConsent: false
+    })
+  );
+  const withEvidenceNoConsent = createReport(
+    validReportInput({
+      evidenceCount: 1,
+      sensitiveDataConsent: false
+    })
+  );
+  const withSensitiveConsent = createReport(
+    validReportInput({
+      contactPhone: "322 123 4567",
+      locationPrecision: "precise",
+      evidenceCount: 2,
+      sensitiveDataConsent: true
+    }),
+    {
+      id: "report-local-sensitive-001",
+      now: "2026-07-12T16:30:00.000Z"
+    }
+  );
+
+  assert.equal(noSensitive.ok, true);
+  assert.equal(noSensitive.report.containsSensitiveOptionalData, false);
+  assert.equal(withPhoneNoConsent.ok, false);
+  assert.equal(withPhoneNoConsent.errors.some((error) => error.field === "sensitiveDataConsent"), true);
+  assert.equal(withPreciseLocationNoConsent.ok, false);
+  assert.equal(withPreciseLocationNoConsent.errors.some((error) => error.field === "sensitiveDataConsent"), true);
+  assert.equal(withEvidenceNoConsent.ok, false);
+  assert.equal(withEvidenceNoConsent.errors.some((error) => error.field === "sensitiveDataConsent"), true);
+  assert.equal(withSensitiveConsent.ok, true);
+  assert.equal(withSensitiveConsent.report.sensitiveDataConsent, true);
+  assert.equal(withSensitiveConsent.report.containsSensitiveOptionalData, true);
+});
+
+test("sensitive fields remain optional and invalid structures are rejected", () => {
+  resetRuntimeReports();
+  const noPhone = validateReportInput(validReportInput({ contactPhone: undefined }));
+  const badPhone = validateReportInput(validReportInput({ contactPhone: "abc", sensitiveDataConsent: true }));
+  const badPrecision = validateReportInput(validReportInput({ locationPrecision: "roof", sensitiveDataConsent: true }));
+  const badConsentType = validateReportInput(validReportInput({ sensitiveDataConsent: "yes" }));
+  const unexpectedField = validateReportInput(validReportInput({ password: "no debe aceptarse" }));
+
+  assert.equal(noPhone.ok, true);
+  assert.equal(badPhone.ok, false);
+  assert.equal(badPhone.errors.some((error) => error.field === "contactPhone"), true);
+  assert.equal(badPrecision.ok, false);
+  assert.equal(badPrecision.errors.some((error) => error.field === "locationPrecision"), true);
+  assert.equal(badConsentType.ok, false);
+  assert.equal(badConsentType.errors.some((error) => error.field === "sensitiveDataConsent"), true);
+  assert.equal(unexpectedField.ok, false);
+  assert.equal(unexpectedField.errors.some((error) => error.field === "password"), true);
+});
+
+test("POST /api/reports enforces privacy contract", () => {
+  resetRuntimeReports();
+  const missingPrivacy = resolveRoute("POST", "/api/reports", {
+    body: {
+      ...validReportInput(),
+      privacyAcknowledged: false
+    }
+  });
+  const sensitiveWithoutConsent = resolveRoute("POST", "/api/reports", {
+    body: validReportInput({
+      contactPhone: "322 123 4567",
+      sensitiveDataConsent: false
+    })
+  });
+  const validSensitive = resolveRoute("POST", "/api/reports", {
+    body: validReportInput({
+      contactPhone: "322 123 4567",
+      locationPrecision: "precise",
+      sensitiveDataConsent: true
+    })
+  });
+  const validBody = JSON.parse(validSensitive.body);
+
+  assert.equal(missingPrivacy.statusCode, 400);
+  assert.equal(JSON.parse(missingPrivacy.body).errors.some((error) => error.field === "privacyAcknowledged"), true);
+  assert.equal(sensitiveWithoutConsent.statusCode, 400);
+  assert.equal(JSON.parse(sensitiveWithoutConsent.body).errors.some((error) => error.field === "sensitiveDataConsent"), true);
+  assert.equal(validSensitive.statusCode, 201);
+  assert.equal(validBody.report.privacyNoticeVersion, PRIVACY_NOTICE_VERSION);
+  assert.equal(validBody.report.sensitiveDataConsent, true);
+});
+
+test("internal notes do not automatically duplicate sensitive report data", () => {
+  resetRuntimeReports();
+  const created = createReport(
+    validReportInput({
+      contactPhone: "322 123 4567",
+      description: "Reporte con telefono opcional y descripcion ciudadana.",
+      sensitiveDataConsent: true
+    }),
+    {
+      id: "report-local-sensitive-note-001",
+      now: "2026-07-12T17:00:00.000Z"
+    }
+  );
+  const updated = updateReportStatus("report-local-sensitive-note-001", {
+    note: "Seguimiento interno sin copiar datos personales."
+  });
+  const event = updated.historyEvent;
+
+  assert.equal(created.ok, true);
+  assert.equal(updated.ok, true);
+  assert.equal(event.note.includes("322"), false);
+  assert.equal(event.note.includes("Reporte con telefono"), false);
 });
 
 test("created reports affect stats and filters", () => {

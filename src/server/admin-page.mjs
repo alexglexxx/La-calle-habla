@@ -221,6 +221,70 @@ export function renderAdminPage() {
         font-weight: 800;
       }
 
+      .privacy-box {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+        border: 1px solid #dec59c;
+        border-radius: 8px;
+        padding: 12px;
+        background: #fff8e8;
+        color: #563907;
+      }
+
+      .privacy-box p {
+        margin: 0;
+      }
+
+      .privacy-details {
+        color: var(--ink);
+      }
+
+      .privacy-details summary {
+        min-height: 34px;
+        cursor: pointer;
+        font-weight: 800;
+      }
+
+      .checkbox-label {
+        display: flex;
+        grid-template-columns: none;
+        gap: 10px;
+        align-items: flex-start;
+        color: var(--ink);
+        font-size: 0.92rem;
+        line-height: 1.35;
+      }
+
+      .checkbox-label input {
+        width: auto;
+        min-width: 20px;
+        min-height: 20px;
+        margin-top: 1px;
+      }
+
+      .sensitive-tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: #fff2d8;
+        color: #654009;
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .admin-warning {
+        margin: 10px 0;
+        padding: 10px 12px;
+        border: 1px solid #dec59c;
+        border-radius: 8px;
+        background: #fff8e8;
+        color: #563907;
+        font-weight: 800;
+      }
+
       .report-list {
         display: grid;
         gap: 12px;
@@ -477,6 +541,7 @@ export function renderAdminPage() {
               <button id="close-detail" class="secondary" type="button">Cerrar detalle</button>
             </div>
             <p class="detail-warning">Este cambio solo actualiza el seguimiento interno local. No confirma resolución por autoridad.</p>
+            <p class="admin-warning">Consulta únicamente los datos necesarios para revisar el reporte. No copies información personal a notas internas.</p>
             <div id="detail-fields" class="detail-fields"></div>
             <form id="status-form" class="status-form">
               <label>
@@ -521,7 +586,7 @@ export function renderAdminPage() {
               </label>
               <label class="wide">
                 Descripcion
-                <textarea name="description" required minlength="15" maxlength="1000" placeholder="Describe que pasa, donde se nota y por que es importante revisarlo."></textarea>
+                <textarea name="description" required minlength="15" maxlength="1000" placeholder="Describe el problema sin incluir contraseñas, datos bancarios, identificaciones oficiales, informacion medica ni datos de menores."></textarea>
               </label>
               <label>
                 Categoria
@@ -537,28 +602,55 @@ export function renderAdminPage() {
                 </select>
               </label>
               <label class="wide">
-                Ubicacion textual
-                <input name="locationText" required minlength="5" maxlength="200" placeholder="Calle, cruce o referencia visible">
+                Ubicacion aproximada
+                <input name="locationText" required minlength="5" maxlength="200" placeholder="Referencia general; no necesitas dar domicilio exacto">
               </label>
               <label>
-                Colonia
+                Precision de ubicacion
+                <select name="locationPrecision">
+                  <option value="approximate">Aproximada</option>
+                  <option value="precise">Precisa (opcional sensible)</option>
+                </select>
+              </label>
+              <label>
+                Colonia (opcional)
                 <input name="neighborhood" maxlength="120" placeholder="Ej. Versalles">
               </label>
               <label>
-                Zona
+                Zona (opcional)
                 <input name="zone" maxlength="120" placeholder="Ej. Centro">
               </label>
               <label>
-                Evidencias
+                Evidencias (opcional sensible)
                 <input name="evidenceCount" type="number" min="0" max="20" value="0">
               </label>
               <label>
-                Alias ciudadano
+                Telefono de contacto (opcional sensible)
+                <input name="contactPhone" maxlength="30" inputmode="tel" placeholder="Solo si quieres que se pueda pedir informacion">
+              </label>
+              <label>
+                Alias ciudadano (opcional)
                 <input name="citizenAlias" maxlength="80" placeholder="Ciudadano anonimo">
               </label>
             </div>
+            <div class="privacy-box" aria-label="Aviso corto de privacidad">
+              <p><strong>Privacidad MVP:</strong> Usaremos la información únicamente para registrar y revisar este reporte dentro de La Calle Habla. No incluyas contraseñas, datos bancarios, identificaciones oficiales ni información médica. Este servicio no pertenece al gobierno y enviar un reporte no garantiza su resolución.</p>
+              <details class="privacy-details">
+                <summary>Ver explicación ampliada de privacidad</summary>
+                <p>Esta es una base operativa local del MVP, no un aviso legal definitivo. Teléfono, ubicación precisa y evidencias son opcionales y pueden ser sensibles. La información se guarda en archivos runtime locales ignorados por Git. Antes de usar datos reales o producción hace falta revisión legal.</p>
+              </details>
+              <label class="checkbox-label">
+                <input id="privacy-acknowledged" name="privacyAcknowledged" type="checkbox">
+                <span>Reconozco este aviso de privacidad operativo del MVP.</span>
+              </label>
+              <label class="checkbox-label">
+                <input id="sensitive-data-consent" name="sensitiveDataConsent" type="checkbox">
+                <span>Doy consentimiento para guardar datos opcionales sensibles que yo proporcione, como teléfono, ubicación precisa o evidencia.</span>
+              </label>
+              <p id="privacy-field-message" class="field-message" aria-live="polite"></p>
+            </div>
             <div class="actions" style="margin-top: 12px;">
-              <button type="submit">Guardar reporte</button>
+              <button id="report-submit" type="submit">Guardar reporte</button>
               <button class="secondary" type="reset">Limpiar</button>
             </div>
             <p id="form-message" class="message" role="status"></p>
@@ -599,6 +691,7 @@ export function renderAdminPage() {
           whatsapp: "WhatsApp"
         }
       };
+      const privacyNoticeVersion = "mvp-1";
 
       function text(value) {
         return String(value ?? "");
@@ -645,6 +738,29 @@ export function renderAdminPage() {
           dateStyle: "medium",
           timeStyle: "short"
         }).format(new Date(value));
+      }
+
+      function maskPhone(value) {
+        const digits = text(value).replace(/\D/g, "");
+        if (digits.length < 4) return "Dato sensible registrado";
+        return "termina en " + digits.slice(-4);
+      }
+
+      function locationSummary(report) {
+        if (report.locationPrecision === "precise") {
+          return "Ubicacion precisa registrada; revisar solo en detalle.";
+        }
+        return report.locationText;
+      }
+
+      function privacyStatus(report) {
+        if (!report.privacyNoticeVersion) {
+          return "Registro histórico sin consentimiento versionado";
+        }
+
+        return "Aviso " + report.privacyNoticeVersion + " reconocido el " +
+          formatDate(report.privacyAcknowledgedAt) + ". Consentimiento sensible: " +
+          (report.sensitiveDataConsent ? "si" : "no requerido/no otorgado") + ".";
       }
 
       function fillSelects() {
@@ -714,7 +830,8 @@ export function renderAdminPage() {
             '</div>' +
             '<div class="meta">' +
               '<div><strong>Zona o colonia:</strong> ' + escapeHtml(zone) + '</div>' +
-              '<div><strong>Ubicacion:</strong> ' + escapeHtml(report.locationText) + '</div>' +
+              '<div><strong>Ubicacion:</strong> ' + escapeHtml(locationSummary(report)) + '</div>' +
+              (report.contactPhone ? '<div><strong>Telefono:</strong> ' + escapeHtml(maskPhone(report.contactPhone)) + '</div>' : '') +
               '<div><strong>Fecha:</strong> ' + escapeHtml(formatDate(report.createdAt)) + '</div>' +
               '<div><strong>Evidencias:</strong> ' + escapeHtml(report.evidenceCount) + '</div>' +
               '<div class="actions">' +
@@ -755,11 +872,13 @@ export function renderAdminPage() {
           '<div><strong>Categoría:</strong> ' + escapeHtml(categoryName(report.category)) + '</div>' +
           '<div><strong>Estado actual:</strong> ' + escapeHtml(statusName(report.status)) + '</div>' +
           '<div><strong>Prioridad:</strong> ' + escapeHtml(labels.priority[report.priority] || report.priority) + '</div>' +
-          '<div><strong>Ubicación:</strong> ' + escapeHtml(report.locationText) + '</div>' +
+          '<div><strong>Ubicación:</strong> ' + escapeHtml(report.locationText) + ' ' + (report.locationPrecision === "precise" ? '<span class="sensitive-tag">Dato sensible</span>' : '') + '</div>' +
           '<div><strong>Colonia:</strong> ' + escapeHtml(report.neighborhood || "Sin colonia") + '</div>' +
           '<div><strong>Zona:</strong> ' + escapeHtml(report.zone || "Sin zona") + '</div>' +
+          (report.contactPhone ? '<div><strong>Telefono:</strong> ' + escapeHtml(report.contactPhone) + ' <span class="sensitive-tag">Dato sensible</span></div>' : '') +
           '<div><strong>Alias ciudadano:</strong> ' + escapeHtml(report.citizenAlias || "Ciudadano anonimo") + '</div>' +
-          '<div><strong>Evidencias:</strong> ' + escapeHtml(report.evidenceCount) + '</div>' +
+          '<div><strong>Evidencias:</strong> ' + escapeHtml(report.evidenceCount) + (Number(report.evidenceCount) > 0 ? ' <span class="sensitive-tag">Dato sensible</span>' : '') + '</div>' +
+          '<div><strong>Privacidad:</strong> ' + escapeHtml(privacyStatus(report)) + '</div>' +
           '<div><strong>Origen:</strong> ' + escapeHtml(labels.source[report.source] || report.source) + '</div>' +
           '<div><strong>Creado:</strong> ' + escapeHtml(formatDate(report.createdAt)) + '</div>' +
           '<div><strong>Actualizado:</strong> ' + escapeHtml(formatDate(report.updatedAt)) + '</div>' +
@@ -890,12 +1009,18 @@ export function renderAdminPage() {
           zone: text(data.get("zone")).trim(),
           priority: text(data.get("priority")).trim(),
           evidenceCount: Number.parseInt(text(data.get("evidenceCount") || "0"), 10),
-          citizenAlias: text(data.get("citizenAlias")).trim()
+          citizenAlias: text(data.get("citizenAlias")).trim(),
+          contactPhone: text(data.get("contactPhone")).trim(),
+          locationPrecision: text(data.get("locationPrecision")).trim(),
+          privacyNoticeVersion,
+          privacyAcknowledged: data.get("privacyAcknowledged") === "on",
+          sensitiveDataConsent: data.get("sensitiveDataConsent") === "on"
         };
 
         if (!payload.neighborhood) delete payload.neighborhood;
         if (!payload.zone) delete payload.zone;
         if (!payload.citizenAlias) delete payload.citizenAlias;
+        if (!payload.contactPhone) delete payload.contactPhone;
 
         return payload;
       }
@@ -904,8 +1029,19 @@ export function renderAdminPage() {
         event.preventDefault();
         const form = event.currentTarget;
         const message = byId("form-message");
+        const privacyMessage = byId("privacy-field-message");
+        const button = byId("report-submit");
         message.className = "message";
+        privacyMessage.textContent = "";
+
+        if (!byId("privacy-acknowledged").checked) {
+          privacyMessage.textContent = "Debes reconocer el aviso antes de enviar el reporte.";
+          message.textContent = "";
+          return;
+        }
+
         message.textContent = "Guardando reporte...";
+        button.disabled = true;
 
         try {
           const created = await fetchJson("/api/reports", {
@@ -923,6 +1059,8 @@ export function renderAdminPage() {
         } catch (error) {
           message.className = "message error";
           message.textContent = error.message || "No se pudo guardar el reporte.";
+        } finally {
+          button.disabled = false;
         }
       }
 

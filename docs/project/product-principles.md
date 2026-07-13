@@ -48,3 +48,11 @@ El sistema debe usar palabras claras: bache, basura, fuga, lampara fundida, banq
 ## Transparencia de limites
 
 La plataforma debe explicar con claridad cuando un reporte fue recibido, cuando fue revisado y cuando solo existe como evidencia ciudadana. No debe inflar el alcance del sistema.
+
+## Privacidad minima desde el MVP
+
+La plataforma debe pedir solo los datos necesarios para revisar un reporte. Telefono, ubicacion precisa y evidencia deben seguir siendo opcionales y requerir consentimiento explicito cuando se proporcionan.
+
+El aviso de privacidad del MVP debe ser claro, corto y visible antes de enviar. No debe presentarse como cumplimiento legal definitivo hasta tener revision legal.
+
+La administracion debe consultar solo lo necesario y evitar copiar datos personales a notas internas.

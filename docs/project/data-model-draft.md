@@ -22,12 +22,19 @@ Campos sugeridos:
 - `closedAt`: fecha y hora de cierre, si aplica.
 - `priority`: prioridad inicial manual o calculada.
 - `notes`: notas internas administrativas.
+- `privacyNoticeVersion`: version del aviso operativo reconocido en reportes nuevos.
+- `privacyAcknowledged`: indicador de reconocimiento del aviso.
+- `privacyAcknowledgedAt`: fecha generada por servidor para el reconocimiento.
+- `sensitiveDataConsent`: consentimiento explicito cuando se proporcionan datos opcionales sensibles.
+- `containsSensitiveOptionalData`: indicador tecnico para telefono, ubicacion precisa o evidencia.
 
 Notas:
 
 - El reporte debe poder existir aunque falte informacion.
 - La prioridad no debe confundirse con compromiso de solucion.
 - El reporte ciudadano y su validacion administrativa deben mantenerse separados.
+- Reportes seed e historicos pueden no tener campos de consentimiento versionado.
+- `privacyAcknowledgedAt` debe generarse por servidor, no por cliente.
 
 ## Reporter
 
@@ -93,6 +100,26 @@ Notas:
 
 - Aceptar ubicaciones aproximadas.
 - Registrar si la ubicacion fue ajustada por administracion.
+- La ubicacion precisa es opcional y requiere consentimiento sensible en el MVP local.
+
+## PrivacyConsent
+
+Representa el reconocimiento tecnico del aviso operativo provisional del MVP. No es un sustituto de un aviso legal definitivo.
+
+Campos actuales en reportes runtime nuevos:
+
+- `privacyNoticeVersion`: actualmente `mvp-1`.
+- `privacyAcknowledged`: debe ser `true` para crear reportes nuevos.
+- `privacyAcknowledgedAt`: timestamp generado por servidor.
+- `sensitiveDataConsent`: `true` cuando se proporciona telefono, ubicacion precisa o evidencia.
+- `containsSensitiveOptionalData`: indicador tecnico derivado por servidor.
+
+Notas:
+
+- Las casillas del formulario no deben estar premarcadas.
+- No se guarda IP, user-agent, fingerprint ni datos adicionales no solicitados.
+- Los reportes historicos sin estos campos deben leerse como compatibles.
+- La politica operativa esta en `docs/project/privacy-and-data-retention.md`.
 
 ## Status
 

@@ -160,7 +160,7 @@ Resultado:
 - Linea de tiempo “Historial interno” en `/admin` y `/admin/report?id=REPORT_ID`.
 - Auditoria en `docs/audits/task-008-local-report-history.md`.
 
-## TASK 009 sugerida: Privacidad y retencion antes de canales reales
+## TASK 009 completada: Privacidad y retencion antes de canales reales
 
 Objetivo:
 
@@ -173,6 +173,32 @@ Validar:
 - Que ubicacion, evidencia, telefono y notas internas tengan tratamiento documentado.
 - Que `/admin` siga siendo local mientras no exista decision de seguridad.
 - Que la siguiente implementacion tecnica no avance integraciones externas sin estas decisiones.
+
+Resultado:
+
+- Politica operativa provisional en `docs/project/privacy-and-data-retention.md`.
+- Clasificacion de datos por riesgo.
+- Version de aviso `mvp-1`.
+- `POST /api/reports` exige reconocimiento del aviso para reportes nuevos.
+- El servidor genera `privacyAcknowledgedAt`.
+- Consentimiento sensible requerido solo para telefono, ubicacion precisa o evidencia.
+- Aviso corto y explicacion ampliada dentro de `/admin`.
+- Detalle administrativo identifica datos sensibles y registros historicos sin consentimiento versionado.
+- Auditoria en `docs/audits/task-009-privacy-consent-retention.md`.
+
+## TASK 010 sugerida: Proteccion local de administracion
+
+Objetivo:
+
+- Definir y aplicar criterios minimos de acceso local a `/admin` antes de exponer la administracion fuera de localhost.
+- Mantener el alcance sin login productivo complejo hasta que exista decision documentada.
+- Reducir riesgo de acceso accidental a reportes runtime, telefono, ubicacion, evidencia e historial.
+
+Validar:
+
+- Que `/admin` siga claramente identificado como herramienta local.
+- Que no se agreguen proveedores externos ni deploy.
+- Que cualquier proteccion local sea reversible y documentada para el MVP.
 
 ## Fase posterior
 
