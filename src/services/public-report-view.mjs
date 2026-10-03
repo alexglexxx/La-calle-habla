@@ -23,6 +23,7 @@ function projectPoint(report) {
 }
 
 export function getPublicReports() {
+  const resolvedReportIds = new Set(listWorkOrders({ status: "resolved" }).map((order) => order.reportId));
   const reports = listReports()
     .filter((report) => PUBLIC_STATUSES.has(report.status))
     .map((report) => ({
