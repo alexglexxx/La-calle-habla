@@ -47,12 +47,10 @@ for (const script of requiredScripts) {
   }
 }
 
-if (Object.keys(packageJson.dependencies || {}).length > 0) {
-  fail("runtime dependencies should stay empty during the skeleton task");
-}
-
-if (Object.keys(packageJson.devDependencies || {}).length > 0) {
-  fail("dev dependencies should stay empty during the skeleton task");
+for (const dependency of ["next", "react", "react-dom"]) {
+  if (!packageJson.dependencies?.[dependency]) {
+    fail(`missing required web dependency ${dependency}`);
+  }
 }
 
 const domainTypes = readFileSync("src/types/domain.ts", "utf8");
