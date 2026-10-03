@@ -203,3 +203,10 @@ Vercel queda preparado mediante `api/index.mjs` y `vercel.json`. Todavía no se 
 ## Advertencia
 
 Este proyecto esta en etapa inicial. No hay integracion real con WhatsApp, mapas, IA, login, deploy ni dependencias gubernamentales. La plataforma no promete que una autoridad resolvera automaticamente los reportes.
+
+
+## TASK 013 — nueva experiencia web
+
+La capa web ahora apunta a Next.js App Router. El portal publico es mapa-first y trabaja sobre un territorio configurado; el dashboard administrativo usa la misma zona con una experiencia mas sobria y operativa. La prioridad/alerta principal se calcula mediante un servicio explicable y separado de la UI.
+
+La cartografia actual es una representacion visual de MVP. El proveedor GIS y el GeoJSON autoritativo se conectaran en la siguiente fase sin cambiar el contrato de territorio.
