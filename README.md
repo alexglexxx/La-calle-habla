@@ -210,3 +210,9 @@ Este proyecto esta en etapa inicial. No hay integracion real con WhatsApp, mapas
 La capa web ahora apunta a Next.js App Router. El portal publico es mapa-first y trabaja sobre un territorio configurado; el dashboard administrativo usa la misma zona con una experiencia mas sobria y operativa. La prioridad/alerta principal se calcula mediante un servicio explicable y separado de la UI.
 
 La cartografia actual es una representacion visual de MVP. El proveedor GIS y el GeoJSON autoritativo se conectaran en la siguiente fase sin cambiar el contrato de territorio.
+
+## TASK-014 — geofence operativo
+
+El territorio ya no es solamente una frontera visual. El dominio valida bounds + polígono y el ingreso por WhatsApp rechaza ubicaciones compartidas fuera de la zona habilitada. Las referencias geográficas usadas para inferencia también se limitan al territorio.
+
+La geometría actual es versionada de MVP; la siguiente fase la sustituirá por un GeoJSON municipal autoritativo mediante un adaptador GIS.
