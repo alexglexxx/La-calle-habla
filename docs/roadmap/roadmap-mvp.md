@@ -415,3 +415,27 @@ No incluido en Task 013:
 Impacto:
 
 - Alto. Esta task define la identidad visual y operativa de producto que servira como base para la futura demostracion y venta institucional, sin sacrificar el motor de ingreso ciudadano ni la seguridad de datos.
+
+## TASK 014 implementada: geofence operativo y datos geográficos seguros
+
+Objetivo:
+
+Convertir el territorio de TASK 013 en una regla real del dominio, evitando que el límite exista solamente como decoración de la interfaz.
+
+Resultado:
+
+- El contrato territorial usa bounds + point-in-polygon.
+- `validateTerritoryLocation()` devuelve códigos explícitos para coordenadas inválidas y puntos fuera de zona.
+- WhatsApp/ingreso ciudadano rechaza ubicaciones compartidas fuera del territorio habilitado.
+- La resolución de referencias escritas ignora antecedentes geográficos fuera del territorio.
+- Se agregaron pruebas automatizadas de frontera y flujo de ingreso.
+- `npm run build` incorpora el check estructural de TASK 014.
+
+No incluido:
+
+- GeoJSON municipal autoritativo.
+- Proveedor GIS definitivo.
+- Geocodificación externa.
+- Persistencia Supabase activa.
+
+Siguiente paso natural: TASK 015 — adaptador GIS real y mapa con coordenadas reales, manteniendo el territorio como contrato independiente del proveedor.
