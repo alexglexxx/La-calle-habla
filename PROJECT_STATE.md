@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: TASK-013 definida: Next.js + portal mapa-first + dashboard operativo + territorio delimitado + prioridad explicable
+Estado: TASK-013 implementada en estructura/UI: Next.js + portal mapa-first + dashboard operativo + territorio delimitado + prioridad explicable
 
 ## Objetivo MVP
 
@@ -76,6 +76,19 @@ Se preparó exclusivamente en La Calle Habla la arquitectura para Supabase, Stor
 FoodSPV 2.0 no fue modificado.
 
 Pendiente de activación: proyecto Supabase objetivo, migración aplicada, pruebas contra Supabase, credenciales Meta, prueba real del webhook y deploy público.
+
+## TASK 013 implementada
+
+Se construyo la primera capa web profesional sobre Next.js App Router.
+
+- Portal publico mapa-first con territorio delimitado.
+- Dashboard admin sobrio con filtros, cola, KPIs y alerta principal.
+- Motor de prioridad explicable separado del componente visual.
+- Proxy de acceso administrativo temporal.
+- Proyeccion publica sin datos sensibles.
+- Vercel conserva el webhook Meta mediante rewrite especifico.
+
+Pendiente para cierre tecnico: ejecutar install/build/test en runtime real, verificacion visual movil, definir proveedor GIS y reemplazar la geometria/proyeccion de demostracion por datos geograficos reales. Supabase/Meta siguen pendientes de activacion de Task 012.
 
 ## Riesgos
 
