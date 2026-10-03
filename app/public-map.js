@@ -39,6 +39,25 @@ const STATUS_LABEL = {
   needs_info: "Requiere información"
 };
 
+const ZOOM = 13;
+const TILE_SIZE = 256;
+
+function longitudeToTileX(longitude) {
+  return ((longitude + 180) / 360) * 2 ** ZOOM;
+}
+
+function latitudeToTileY(latitude) {
+  const radians = (latitude * Math.PI) / 180;
+  return ((1 - Math.asinh(Math.tan(radians)) / Math.PI) / 2) * 2 ** ZOOM;
+}
+
+function tileUrl(x, y) {
+  const max = 2 ** ZOOM;
+  const wrappedX = ((x % max) + max) % max;
+  if (y < 0 || y >= max) return null;
+  return `https://tile.openstreetmap.org/${ZOOM}/${wrappedX}/${y}.png`;
+}
+
 export default function PublicMap({ data }) {
   const [selectedId, setSelectedId] = useState(null);
   const [filter, setFilter] = useState("all");
@@ -51,12 +70,34 @@ export default function PublicMap({ data }) {
   const visibleReports = data.reports.filter(
     (report) => filter === "all" || report.category === filter
   );
+
   const selected = visibleReports.find((report) => report.id === selectedId) || null;
+  const centerX = longitudeToTileX(data.territory.center.longitude);
+  const centerY = latitudeToTileY(data.territory.center.latitude);
+  const centerTileX = Math.floor(centerX);
+  const centerTileY = Math.floor(centerY);
+
+  const tiles = useMemo(
+    () =>
+      [-1, 0, 1].flatMap((dx) =>
+        [-1, 0, 1].map((dy) => {
+          const x = centerTileX + dx;
+          const y = centerTileY + dy;
+          return {
+            key: `${x}:${y}`,
+            src: tileUrl(x, y),
+            left: `${(x - centerX) * TILE_SIZE + 50}%`,
+            top: `${(y - centerY) * TILE_SIZE + 50}%`
+          };
+        })
+      ),
+    [centerTileX, centerTileY, centerX, centerY]
+  );
 
   return (
     <section className="map-stage" aria-label={`Mapa de ${data.territory.name}`}>
       <div className="map-toolbar">
-        <span className="map-mode">MAPA OPERATIVO</span>
+        <span className="map-mode">MAPA GIS · DATOS REALES</span>
         <div className="filter-row">
           {categories.map((category) => (
             <button
@@ -70,20 +111,35 @@ export default function PublicMap({ data }) {
         </div>
       </div>
 
-      <div className="game-map">
-        <div className="map-grid" />
-        <div className="map-rings" />
-        <div className="road road-a" />
-        <div className="road road-b" />
-        <div className="road road-c" />
+      <div className="game-map real-map">
+        <div className="osm-layer" aria-hidden="true">
+          {tiles.map((tile) =>
+            tile.src ? (
+              <img
+                key={tile.key}
+                src={tile.src}
+                alt=""
+                className="osm-tile"
+                style={{ left: tile.left, top: tile.top }}
+              />
+            ) : null
+          )}
+        </div>
+
+        <div className="map-overlay" />
         <div className="territory-boundary" />
-        <div className="territory-label">PUERTO VALLARTA · ZONA ACTIVA</div>
+        <div className="territory-label">
+          {data.territory.name.toUpperCase()} · TERRITORIO ACTIVO
+        </div>
 
         {visibleReports.map((report) => (
           <button
             key={report.id}
             className={`map-pin priority-${report.priority}`}
-            style={{ left: `${report.location.x * 100}%`, top: `${report.location.y * 100}%` }}
+            style={{
+              left: `${report.location.x * 100}%`,
+              top: `${report.location.y * 100}%`
+            }}
             onClick={() => setSelectedId(report.id)}
             aria-label={report.title}
           >
@@ -92,7 +148,7 @@ export default function PublicMap({ data }) {
           </button>
         ))}
 
-        <div className="map-compass">N<br /><span>⌄</span></div>
+        <div className="map-compass">N<br /><span>⌃</span></div>
 
         {selected && (
           <aside className="report-popover">
@@ -103,8 +159,16 @@ export default function PublicMap({ data }) {
             <div className="popover-meta">
               <span>{STATUS_LABEL[selected.status] || selected.status}</span>
               <span>{selected.priority === "urgent" ? "Prioridad alta" : "Seguimiento activo"}</span>
+              <span>● Coordenada real</span>
             </div>
           </aside>
+        )}
+
+        {visibleReports.length === 0 && (
+          <div className="map-empty">
+            <strong>Sin coordenadas publicables todavía</strong>
+            <span>Los reportes aparecerán aquí cuando tengan una ubicación válida dentro del territorio.</span>
+          </div>
         )}
       </div>
 
@@ -114,7 +178,7 @@ export default function PublicMap({ data }) {
           <span><i className="legend-dot high" /> Atención</span>
           <span><i className="legend-dot urgent" /> Prioridad</span>
         </div>
-        <span className="territory-lock">⌖ Solo territorio habilitado</span>
+        <span className="territory-lock">⌖ Solo coordenadas válidas · © OpenStreetMap</span>
       </div>
     </section>
   );
