@@ -348,7 +348,13 @@ function geocodedReports() {
       report,
       location: report.locationDetails
     }))
-    .filter(({ location }) => Number.isFinite(location?.latitude) && Number.isFinite(location?.longitude));
+    .filter(({ location }) => {
+      return (
+        Number.isFinite(location?.latitude) &&
+        Number.isFinite(location?.longitude) &&
+        isInsideTerritory(location.latitude, location.longitude)
+      );
+    });
 }
 
 export function resolveWrittenLocation(reference) {
@@ -437,18 +443,30 @@ function sharedLocation(message) {
   const name = cleanString(message.location.name);
   const address = cleanString(message.location.address);
   const originalReference = [name, address].filter(Boolean).join(" · ");
+  const validation = validateTerritoryLocation(message.location);
+
+  if (!validation.ok) {
+    return {
+      ok: false,
+      code: validation.code,
+      message: validation.message
+    };
+  }
 
   return {
-    source: "whatsapp_shared",
-    originalReference: originalReference || "Ubicación compartida por WhatsApp",
-    normalizedReference: normalizeReference(name || address || "ubicacion compartida"),
-    latitude: message.location.latitude,
-    longitude: message.location.longitude,
-    resolutionStatus: "exact",
-    confidence: "high",
-    resolvedAt: message.timestamp,
-    resolutionMethod: "whatsapp_shared_location",
-    supportingReportCount: 0
+    ok: true,
+    location: {
+      source: "whatsapp_shared",
+      originalReference: originalReference || "Ubicación compartida por WhatsApp",
+      normalizedReference: normalizeReference(name || address || "ubicacion compartida"),
+      latitude: validation.latitude,
+      longitude: validation.longitude,
+      resolutionStatus: "exact",
+      confidence: "high",
+      resolvedAt: message.timestamp,
+      resolutionMethod: "whatsapp_shared_location",
+      supportingReportCount: 0
+    }
   };
 }
 
@@ -681,7 +699,21 @@ function applyMessageToSession(session, message, now, options = {}) {
 
   if (message.type === "location") {
     if (!session.location) {
-      session.location = sharedLocation(message);
+      const result = sharedLocation(message);
+
+      if (!result.ok) {
+        return {
+          ok: true,
+          locationRejected: true,
+          reply: reply(
+            result.code === "outside_territory"
+              ? "Esa ubicación está fuera del territorio habilitado. Comparte una ubicación dentro de la zona de La Calle Habla."
+              : "No pudimos validar esa ubicación. Comparte nuevamente tu ubicación."
+          )
+        };
+      }
+
+      session.location = result.location;
     }
 
     if (session.photoReference) {
