@@ -294,7 +294,7 @@ Pendiente para la siguiente activación:
 - Desplegar a Vercel y validar webhook end-to-end.
 
 
-## TASK 013 definida: plataforma web Next.js + territorio delimitado + prioridad operativa
+## TASK 013 implementada: plataforma web Next.js + territorio delimitado + prioridad operativa
 
 Objetivo:
 
