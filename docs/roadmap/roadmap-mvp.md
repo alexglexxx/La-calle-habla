@@ -213,7 +213,7 @@ Resultado:
 - Simulador `npm run simulate:report-intake`.
 - Auditoria en `docs/audits/task-010-fast-anonymous-report-intake.md`.
 
-## TASK 011 sugerida: Proteccion local de administracion
+## TASK 011 completada: Proteccion local de administracion
 
 Objetivo:
 
@@ -226,6 +226,22 @@ Validar:
 - Que `/admin` siga claramente identificado como herramienta local.
 - Que no se agreguen proveedores externos ni deploy.
 - Que cualquier proteccion local sea reversible y documentada para el MVP.
+
+### Resultado
+
+- Se creo src/server/admin-auth.mjs con Basic Auth para administracion.
+- /admin, /admin/report, /api/reports, /api/stats y /api/report-history requieren acceso administrativo fuera de localhost.
+- Si las credenciales no estan configuradas, el acceso externo se bloquea con error explicito.
+- ADMIN_AUTH_REQUIRED=true permite forzar autenticacion tambien en localhost.
+- Las credenciales viven solo en variables de entorno; .env.example documenta la configuracion.
+- Se agregaron pruebas de localhost, Host publico, credenciales ausentes y credenciales validas.
+- No se agregaron proveedores externos, deploy, WhatsApp, mapas ni login productivo.
+
+### Limitaciones conocidas
+
+- Basic Auth es una barrera de MVP, no el sistema de identidad definitivo.
+- Para uso por tunel publico debe usarse HTTPS y una contraseña fuerte.
+- La administracion sigue pensada para un operador controlado; roles, sesiones, revocacion y auditoria de autenticacion quedan para una fase posterior.
 
 ## Fase posterior
 
