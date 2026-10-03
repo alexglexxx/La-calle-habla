@@ -40,6 +40,7 @@ import {
   saveRuntimeReports
 } from "../src/services/runtime-report-store.mjs";
 import { handleRequest, readRequestBody } from "../src/server/index.mjs";
+import { isAdminAuthorized, isAdminRoute } from "../src/server/admin-auth.mjs";
 import { resolveRoute } from "../src/server/routes.mjs";
 
 const tempDir = mkdtempSync(path.join(tmpdir(), "calle-habla-tests-"));
@@ -1403,6 +1404,58 @@ test("POST /api/reports rejects invalid JSON and validation failures", () => {
   assert.equal(JSON.parse(invalidJsonRoute.body).error, "invalid_json");
   assert.equal(validationRoute.statusCode, 400);
   assert.equal(JSON.parse(validationRoute.body).error, "validation_failed");
+});
+
+test("admin routes stay local-only by default and require credentials on public hosts", () => {
+  const originalRequired = process.env.ADMIN_AUTH_REQUIRED;
+  const originalUsername = process.env.ADMIN_USERNAME;
+  const originalPassword = process.env.ADMIN_PASSWORD;
+
+  delete process.env.ADMIN_AUTH_REQUIRED;
+  delete process.env.ADMIN_USERNAME;
+  delete process.env.ADMIN_PASSWORD;
+
+  assert.equal(isAdminRoute("/admin"), true);
+  assert.equal(isAdminRoute("/admin/report"), true);
+  assert.equal(isAdminRoute("/api/reports"), true);
+  assert.equal(isAdminRoute("/api/stats"), true);
+  assert.equal(isAdminRoute("/api/report-history"), true);
+  assert.equal(isAdminRoute("/health"), false);
+  assert.equal(isAdminAuthorized({ host: "127.0.0.1:3000" }), true);
+  assert.equal(isAdminAuthorized({ host: "public.example.com" }), false);
+
+  const unauthorized = resolveRoute("GET", "/admin", {
+    headers: { host: "public.example.com" }
+  });
+
+  assert.equal(unauthorized.statusCode, 503);
+  assert.equal(JSON.parse(unauthorized.body).error, "admin_auth_not_configured");
+
+  process.env.ADMIN_USERNAME = "admin";
+  process.env.ADMIN_PASSWORD = "test-password";
+
+  const missingCredentials = resolveRoute("GET", "/admin", {
+    headers: { host: "public.example.com" }
+  });
+  const authorizedHeader = "Basic " + Buffer.from("admin:test-password").toString("base64");
+  const authorized = resolveRoute("GET", "/admin", {
+    headers: {
+      host: "public.example.com",
+      authorization: authorizedHeader
+    }
+  });
+
+  assert.equal(missingCredentials.statusCode, 401);
+  assert.equal(JSON.parse(missingCredentials.body).error, "admin_auth_required");
+  assert.equal(authorized.statusCode, 200);
+  assert.match(authorized.headers["content-type"], /text\\/html/);
+
+  if (originalRequired === undefined) delete process.env.ADMIN_AUTH_REQUIRED;
+  else process.env.ADMIN_AUTH_REQUIRED = originalRequired;
+  if (originalUsername === undefined) delete process.env.ADMIN_USERNAME;
+  else process.env.ADMIN_USERNAME = originalUsername;
+  if (originalPassword === undefined) delete process.env.ADMIN_PASSWORD;
+  else process.env.ADMIN_PASSWORD = originalPassword;
 });
 
 test("request body reader rejects payloads over the configured limit", async () => {
