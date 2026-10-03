@@ -143,6 +143,7 @@ export default function PublicMap({ data }) {
             }}
             onClick={() => setSelectedId(report.id)}
             aria-label={report.title}
+            data-location-source={report.locationSource}
           >
             <span className="pin-pulse" />
             <span className="pin-core">{CATEGORY_ICON[report.category] || "•"}</span>
