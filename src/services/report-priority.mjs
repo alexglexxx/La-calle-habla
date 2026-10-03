@@ -1,4 +1,4 @@
-const STATUS_WEIGHT = {
+const STATUS_WEIGHT = {\n  resolved: 0,
   new: 1.2,
   in_review: 1,
   validated: 1.1,
@@ -63,7 +63,7 @@ export function calculateReportPriority(report, relatedReports = [], now = Date.
 }
 
 export function findPrimaryAttention(reports, now = Date.now()) {
-  const active = reports.filter((report) => !["closed", "duplicate"].includes(normalize(report.status)));
+  const active = reports.filter((report) => !["closed", "duplicate", "resolved"].includes(normalize(report.status)));
   const groups = new Map();
 
   for (const report of active) {
