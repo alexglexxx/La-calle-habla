@@ -8,7 +8,7 @@
     "dev": "next dev",
     "start": "next start",
     "lint": "node scripts/validate-project.mjs",
-    "build": "next build && node scripts/build-check.mjs && node scripts/task-013-check.mjs && node scripts/task-014-check.mjs",
+    "build": "next build && node scripts/build-check.mjs && node scripts/task-013-check.mjs && node scripts/task-014-check.mjs && node scripts/task-015-check.mjs && node scripts/task-016-check.mjs",
     "test": "node --test",
     "simulate:report-intake": "node scripts/simulate-report-intake.mjs"
   },
