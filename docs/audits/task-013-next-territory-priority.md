@@ -56,3 +56,17 @@ La capa publica recibe una proyeccion reducida. No debe importar directamente re
 ## Criterio de salida
 
 La Task 013 se considera **implementada en estructura y UI inicial**, pendiente de verificacion de runtime y de sustituir la cartografia de demostracion por el adaptador GIS real antes de produccion.
+
+## Seguimiento TASK 014
+
+TASK 014 convirtió la frontera territorial de una comprobación rectangular implícita en una validación de dominio mediante polígono.
+
+Verificaciones añadidas:
+
+- punto conocido dentro del territorio;
+- punto fuera del territorio;
+- coordenadas inválidas;
+- ubicación WhatsApp fuera de zona;
+- sesión que permanece esperando ubicación después del rechazo.
+
+La geometría continúa siendo MVP y debe sustituirse por GeoJSON autoritativo antes de una operación institucional.
