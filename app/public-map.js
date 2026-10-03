@@ -32,7 +32,7 @@ const CATEGORY_LABEL = {
   otro: "Otros"
 };
 
-const STATUS_LABEL = {
+const STATUS_LABEL = {\n  resolved: "Reporte ciudadano resuelto",
   new: "Recibido",
   in_review: "En revisión",
   validated: "Validado",
@@ -135,7 +135,7 @@ export default function PublicMap({ data }) {
         {visibleReports.map((report) => (
           <button
             key={report.id}
-            className={`map-pin priority-${report.priority}`}
+            className={report.status === "resolved" ? "map-pin priority-resolved" : `map-pin priority-${report.priority}`}
             style={{
               left: `${report.location.x * 100}%`,
               top: `${report.location.y * 100}%`
@@ -158,7 +158,7 @@ export default function PublicMap({ data }) {
             <p>{selected.neighborhood}</p>
             <div className="popover-meta">
               <span>{STATUS_LABEL[selected.status] || selected.status}</span>
-              <span>{selected.priority === "urgent" ? "Prioridad alta" : "Seguimiento activo"}</span>
+              <span>{selected.status === "resolved" ? "✓ Atención verificada" : (selected.priority === "urgent" ? "Prioridad alta" : "Seguimiento activo")}</span>
               <span>● Coordenada real</span>
             </div>
           </aside>
