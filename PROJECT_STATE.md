@@ -117,3 +117,17 @@ Pendiente para cierre tecnico: ejecutar install/build/test en runtime real, veri
 - Definicion exacta de roles administrativos.
 - Si el MVP continuara con JSON local o migrara a base de datos.
 - Politica legal de retencion y eliminacion antes de produccion.
+
+## TASK 014 implementada: geofence real y frontera de ubicación
+
+Se endureció el contrato territorial que había quedado como presentación MVP en TASK 013.
+
+- `isInsideTerritory` ahora valida primero bounds y después el polígono configurado.
+- `validateTerritoryLocation` distingue coordenadas inválidas de ubicaciones fuera del territorio.
+- El ingreso ciudadano de WhatsApp rechaza ubicaciones compartidas fuera del territorio habilitado.
+- Las referencias geográficas previas usadas para inferencia se limitan a reportes dentro del territorio.
+- La sesión no avanza ni crea reporte cuando una ubicación compartida es rechazada.
+- Se agregaron pruebas reproducibles para punto válido, coordenadas inválidas, punto externo y flujo WhatsApp.
+- El check estructural de TASK 014 quedó integrado al `npm run build`.
+
+Limitación deliberada: el polígono sigue siendo una geometría MVP versionada, no un límite municipal autoritativo. La siguiente capa GIS debe sustituir esta geometría sin cambiar el contrato de negocio.
