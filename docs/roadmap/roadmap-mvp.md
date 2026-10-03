@@ -263,3 +263,32 @@ No integrar WhatsApp, mapas, IA o deploy hasta validar:
 - Politica basica de privacidad.
 - Estados claros y no oficiales.
 - Scripts de validacion reproducibles.
+
+
+## TASK 012 completada: persistencia productiva y frontera WhatsApp/Meta
+
+Objetivo:
+- Definir Supabase como persistencia productiva.
+- Preparar Storage privado para fotografías.
+- Crear la frontera Meta -> IncomingCitizenMessage.
+- Preparar compatibilidad con Vercel sin convertir el proyecto a Next.js.
+- Usar FoodSPV 2.0 solamente como referencia del webhook, sin modificarlo.
+
+Resultado:
+- Migración Supabase en `supabase/migrations/20261003_task_012_initial.sql`.
+- Bucket privado `report-evidence`, límite 5 MB y MIME de imágenes permitido.
+- Unicidad para `processed_messages.message_id` y `reports.source_message_id`.
+- Parser propio de Meta en `src/integrations/whatsapp/meta-webhook.mjs`.
+- Descarga de media preparada en `src/integrations/whatsapp/meta-media.mjs`.
+- Envío de texto preparado en `src/integrations/whatsapp/meta-sender.mjs`.
+- Cliente REST server-side para Supabase.
+- Función Vercel en `api/index.mjs`.
+- Auditoría completa en `docs/audits/task-012-production-persistence-and-whatsapp-boundary.md`.
+
+Pendiente para la siguiente activación:
+- Seleccionar/crear el proyecto Supabase de La Calle Habla.
+- Aplicar la migración y ejecutar query de prueba + advisors.
+- Conectar el store de reportes/sesiones a Supabase.
+- Probar media real y hash.
+- Configurar credenciales Meta.
+- Desplegar a Vercel y validar webhook end-to-end.
