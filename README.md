@@ -39,7 +39,7 @@ Stack inicial:
 
 Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle, cambio de estado interno, notas internas, historial local por reporte, aviso operativo de privacidad del MVP y motor interno de ingreso expres anonimo compatible con WhatsApp.
 
-Todavia no hay integracion real con WhatsApp, webhook publico ni dashboard productivo. El panel administrativo local y sus APIs sensibles estan protegidos: en localhost siguen siendo accesibles para desarrollo; cualquier Host publico/no-loopback exige Basic Auth, y tambien puede forzarse en localhost con ADMIN_AUTH_REQUIRED=true.
+La integración real con Meta todavía no está activada, pero TASK-012 ya dejó preparada la frontera de webhook, el esquema Supabase/Storage y una función compatible con Vercel. El store JSON local sigue siendo la fuente de runtime hasta activar el proveedor productivo. El panel administrativo local y sus APIs sensibles estan protegidos: en localhost siguen siendo accesibles para desarrollo; cualquier Host publico/no-loopback exige Basic Auth, y tambien puede forzarse en localhost con ADMIN_AUTH_REQUIRED=true.
 
 ## Comandos
 
@@ -181,6 +181,16 @@ Para reportes nuevos, `POST /api/reports` requiere:
 El servidor genera `privacyAcknowledgedAt`; no confia en timestamps enviados por cliente.
 
 `sensitiveDataConsent: true` solo se exige cuando el reporte incluye telefono, ubicacion precisa o evidencia. Estos datos siguen siendo opcionales. Esta politica no es un aviso legal definitivo y requiere revision legal antes de operar con datos ciudadanos reales o produccion.
+
+## TASK-012: frontera productiva preparada
+
+La Calle Habla ya tiene una frontera propia para Meta/WhatsApp en `/api/webhook/whatsapp`. Esta frontera verifica la firma del raw body, normaliza texto, foto, ubicación y acciones al contrato `IncomingCitizenMessage`, y entrega el mensaje al motor `report-intake-service`.
+
+Supabase queda preparado con migración en `supabase/migrations/20261003_task_012_initial.sql` y bucket privado `report-evidence`. El `SUPABASE_SERVICE_ROLE_KEY` es exclusivamente server-side.
+
+FoodSPV 2.0 se usó únicamente como referencia del patrón webhook. No se modificó ese repositorio ni se comparte su lógica de negocio.
+
+Vercel queda preparado mediante `api/index.mjs` y `vercel.json`. Todavía no se activa deploy público ni credenciales reales.
 
 ## Como continuar
 
