@@ -39,7 +39,7 @@ Stack inicial:
 
 Ya existen endpoints locales para categorias, estados, reportes, estadisticas, creacion local de reportes, vista administrativa local con detalle, cambio de estado interno, notas internas, historial local por reporte, aviso operativo de privacidad del MVP y motor interno de ingreso expres anonimo compatible con WhatsApp.
 
-Todavia no hay integracion real con WhatsApp, webhook publico, login ni dashboard productivo.
+Todavia no hay integracion real con WhatsApp, webhook publico ni dashboard productivo. El panel administrativo local y sus APIs sensibles estan protegidos: en localhost siguen siendo accesibles para desarrollo; cualquier Host publico/no-loopback exige Basic Auth, y tambien puede forzarse en localhost con ADMIN_AUTH_REQUIRED=true.
 
 ## Comandos
 
@@ -146,6 +146,20 @@ npm run simulate:report-intake
 El simulador usa un secreto ficticio, referencias de foto ficticias, coordenadas ficticias, idempotencia por `messageId`, resolucion local de referencias y limpia sus propios datos temporales. No crea webhook abierto ni descarga medios de Meta.
 
 El motor guarda sesiones temporales en `data/runtime/report-intake-sessions.json`, archivo ignorado por Git.
+
+
+## Proteccion administrativa local
+
+El panel administrativo y las APIs que exponen o modifican reportes tienen una barrera de acceso administrativa. El comportamiento es deliberadamente simple para el MVP:
+
+- En localhost, el panel puede usarse sin login para desarrollo local.
+- Si la peticion llega con un Host no-loopback (por ejemplo, mediante un tunel publico), se exige Basic Auth.
+- ADMIN_USERNAME y ADMIN_PASSWORD deben existir antes de exponer el panel; si faltan, el acceso se bloquea.
+- ADMIN_AUTH_REQUIRED=true permite exigir autenticacion tambien en localhost.
+- Las credenciales se configuran por entorno y no se guardan en Git. Usa .env.example como referencia.
+- Esta proteccion no sustituye un sistema de identidad productivo ni autoriza todavia un deploy publico.
+
+Antes de usar un tunel para pruebas desde el telefono, configura credenciales y verifica que /admin devuelva 401 sin ellas y cargue solo con autenticacion.
 
 ## Privacidad MVP
 
