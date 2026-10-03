@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: Ingreso exprés anónimo simulado + administración local protegida
+Estado: TASK-012 preparada: frontera Meta/WhatsApp + persistencia Supabase + adaptador Vercel
 
 ## Objetivo MVP
 
@@ -69,9 +69,13 @@ Decision actual:
 
 La decision esta documentada en `docs/project/technical-stack.md`.
 
-## Proxima task recomendada
+## TASK 012 completada: persistencia productiva y frontera WhatsApp/Meta
 
-TASK 012: decidir persistencia productiva y preparar la frontera de WhatsApp/Meta sin conectar todavía el proveedor real.
+Se preparó exclusivamente en La Calle Habla la arquitectura para Supabase, Storage privado, frontera Meta/WhatsApp y función Node compatible con Vercel.
+
+FoodSPV 2.0 no fue modificado.
+
+Pendiente de activación: proyecto Supabase objetivo, migración aplicada, pruebas contra Supabase, credenciales Meta, prueba real del webhook y deploy público.
 
 ## Riesgos
 
