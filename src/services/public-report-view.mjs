@@ -1,6 +1,7 @@
 import { listReports } from "./report-service.mjs";
 import { isInsideTerritory, LCH_TERRITORY } from "../config/territory.mjs";
 import { findPrimaryAttention } from "./report-priority.mjs";
+import { projectReportsToMap } from "./gis-view.mjs";
 
 const PUBLIC_STATUSES = new Set(["new", "in_review", "validated", "needs_info"]);
 
@@ -21,9 +22,8 @@ function projectPoint(report) {
 }
 
 export function getPublicReports() {
-  return listReports()
+  const reports = listReports()
     .filter((report) => PUBLIC_STATUSES.has(report.status))
-    .filter(() => true)
     .map((report) => ({
       id: report.id,
       title: report.title,
@@ -32,8 +32,10 @@ export function getPublicReports() {
       priority: report.priority,
       neighborhood: report.neighborhood || report.zone,
       createdAt: report.createdAt,
-      location: projectPoint(report)
+      locationDetails: report.locationDetails || null
     }));
+
+  return projectReportsToMap(reports);
 }
 
 export function getPublicPortalData() {
