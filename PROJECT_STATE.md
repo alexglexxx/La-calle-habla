@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: TASK-012 preparada: frontera Meta/WhatsApp + persistencia Supabase + adaptador Vercel
+Estado: TASK-013 definida: Next.js + portal mapa-first + dashboard operativo + territorio delimitado + prioridad explicable
 
 ## Objetivo MVP
 
@@ -79,7 +79,8 @@ Pendiente de activación: proyecto Supabase objetivo, migración aplicada, prueb
 
 ## Riesgos
 
-- No hay framework web ni base de datos definidos.
+- Next.js queda definido como framework de la experiencia web desde TASK 013.
+- La base de datos productiva Supabase sigue pendiente de activacion.
 - TypeScript esta definido como contrato, pero aun no hay compilacion con `tsc`.
 - La persistencia local en JSON no es apta para concurrencia alta.
 - La vista `/admin` usa Basic Auth como barrera de MVP cuando se accede fuera de localhost; no es identidad productiva.
@@ -91,7 +92,10 @@ Pendiente de activación: proyecto Supabase objetivo, migración aplicada, prueb
 ## Decisiones abiertas
 
 - Base de datos.
-- Framework web, si el MVP lo requiere.
+
+- Diseño final de geofence y modelo de territorio.
+- Modelo exacto de prioridad/alerta.
+- Proveedor de identidad administrativa productiva.
 - Proveedor de WhatsApp.
 - Adaptador real de WhatsApp/Meta cuando existan credenciales, webhook publico y decision documentada.
 - Proveedor de mapas.
