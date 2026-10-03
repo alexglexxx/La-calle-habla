@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: Ingreso exprés anónimo simulado
+Estado: Ingreso exprés anónimo simulado + administración local protegida
 
 ## Objetivo MVP
 
@@ -71,14 +71,14 @@ La decision esta documentada en `docs/project/technical-stack.md`.
 
 ## Proxima task recomendada
 
-TASK 011: proteccion local de `/admin` y criterios de acceso antes de exponer administracion fuera de localhost.
+TASK 012: decidir persistencia productiva y preparar la frontera de WhatsApp/Meta sin conectar todavía el proveedor real.
 
 ## Riesgos
 
 - No hay framework web ni base de datos definidos.
 - TypeScript esta definido como contrato, pero aun no hay compilacion con `tsc`.
 - La persistencia local en JSON no es apta para concurrencia alta.
-- La vista `/admin` no tiene login y debe mantenerse local.
+- La vista `/admin` usa Basic Auth como barrera de MVP cuando se accede fuera de localhost; no es identidad productiva.
 - Los cambios de estado son internos de la plataforma y no implican resolucion oficial.
 - WhatsApp real puede agregar friccion legal, tecnica y de costos si se integra demasiado pronto.
 - Ubicacion, fotos y telefono pueden ser datos sensibles.
