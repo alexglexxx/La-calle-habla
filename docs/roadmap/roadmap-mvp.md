@@ -292,3 +292,126 @@ Pendiente para la siguiente activación:
 - Probar media real y hash.
 - Configurar credenciales Meta.
 - Desplegar a Vercel y validar webhook end-to-end.
+
+
+## TASK 013 definida: plataforma web Next.js + territorio delimitado + prioridad operativa
+
+Objetivo:
+
+Construir la nueva experiencia web de La Calle Habla sobre Next.js, separando claramente dos superficies sobre el mismo dominio:
+
+1. Portal publico: mapa urbano visual, exploratorio y con lenguaje visual inspirado en interfaces de videojuegos de mapa/HUD, sin convertirlo en un juego.
+2. Dashboard administrativo: centro de operaciones serio, profesional y accionable para revisar, priorizar y dar seguimiento a reportes.
+
+La experiencia completa debe trabajar sobre un territorio configurable y delimitado. La instalacion inicial se modelara para Puerto Vallarta, pero la arquitectura debe permitir cambiar municipio/zona sin reconstruir la aplicacion.
+
+Principios de producto:
+
+- El mapa es el protagonista del portal publico.
+- El publico entra directamente al territorio configurado; no se presenta la Republica completa como mapa operativo.
+- Fuera del territorio habilitado no se muestran reportes ni controles operativos.
+- El limite geografico debe existir tanto en la UI como en reglas de backend; no depender solamente del recorte visual.
+- Los iconos de categorias seran propios y consistentes: baches, alumbrado, basura, fugas, senalizacion, banquetas, areas verdes y otras categorias configurables.
+- El lenguaje visual publico puede usar mapa estilizado, HUD, POI, agrupacion, animaciones discretas y estados visuales, manteniendo accesibilidad y credibilidad institucional.
+- El dashboard admin reutiliza el mismo mapa y territorio, pero con una interfaz sobria y profesional.
+- No convertir toda la interfaz en un videojuego: la metafora sirve para orientar y visualizar, no para trivializar problemas ciudadanos.
+
+Territorio:
+
+- Crear configuracion de municipio/zona con limites geograficos versionables.
+- Definir geofence para validar reportes y consultas operativas.
+- Definir comportamiento de zoom/pan para mantener al usuario dentro del territorio configurado.
+- Preparar soporte futuro para colonias, zonas y otras divisiones administrativas.
+- No hardcodear Puerto Vallarta en componentes de UI o logica de negocio; debe ser configuracion.
+
+Portal publico:
+
+- Ruta publica principal en Next.js.
+- Mapa como elemento central.
+- Agrupacion de reportes al alejar zoom y puntos individuales al acercar.
+- Filtros simples por categoria/estado/periodo.
+- Detalle publico de reporte sin telefono, phoneId, notas internas ni datos sensibles.
+- Estadisticas publicas agregadas.
+- Iconografia propia y leyenda clara.
+- Responsive desde movil.
+- Animaciones ligeras y respetuosas con prefers-reduced-motion.
+
+Dashboard administrativo:
+
+- Acceso protegido; no reutilizar Basic Auth como identidad productiva definitiva.
+- Mapa operativo restringido al territorio asignado.
+- Filtros por estado, categoria, antiguedad, zona, prioridad y responsable/dependencia cuando exista.
+- Detalle completo para operador autorizado.
+- Cambio de estado, asignacion, notas internas, evidencia e historial.
+- Contadores y tendencias utiles, evitando graficas decorativas.
+- Roles preparados para superadmin, operador y futura dependencia.
+- Acciones destructivas o de cierre con confirmacion explicita.
+
+Motor de prioridad/alerta:
+
+Definir un modelo de prioridad explicable y auditable. No debe existir una "urgencia magica" sin explicar sus causas.
+
+Factores iniciales candidatos:
+
+- cantidad de reportes relacionados;
+- antiguedad del reporte mas antiguo y antiguedad acumulada;
+- reincidencia/concentracion geografica;
+- categoria o severidad configurable;
+- tendencia reciente.
+
+El sistema debe producir razones legibles, por ejemplo: "37 reportes en 9 dias en esta zona".
+
+La UI admin debe mostrar como maximo una alerta principal prominente a la vez: el principal punto de atencion segun el modelo vigente. Las demas prioridades permanecen accesibles en la cola.
+
+La alerta principal:
+
+- aparece como popup/panel rojo de alta visibilidad cuando corresponda;
+- usa animacion de pulso suave grande -> pequena -> grande, no parpadeo agresivo;
+- explica por que fue elevada;
+- permite "Ver reportes" y enfocar el mapa en la zona;
+- no declara emergencia oficial ni atribuye una obligacion a una dependencia;
+- puede desaparecer temporalmente sin alterar la prioridad de los datos.
+
+Arquitectura web:
+
+- Next.js como framework de la experiencia web.
+- Mantener el core de dominio e ingreso ciudadano independiente de la UI.
+- Reutilizar contratos y servicios del dominio en lugar de duplicar reglas dentro de componentes.
+- Preparar adaptadores para mapa y almacenamiento sin acoplar el dominio a un proveedor.
+- La capa web no debe exponer service-role keys, phoneId, notas internas ni evidencia privada.
+- El mapa publico y el admin consumiran datos mediante fronteras de lectura apropiadas.
+
+Migracion:
+
+- No destruir el servidor actual ni el flujo de WhatsApp/Meta preparado en Task 012.
+- Migrar primero la experiencia web y los contratos necesarios.
+- Mantener endpoints/compatibilidad durante la transicion cuando sea razonable.
+- La persistencia productiva Supabase y la activacion real de Meta siguen siendo prerequisitos de produccion y se integraran sin contaminar la capa visual.
+- FoodSPV 2.0 permanece estrictamente como referencia y no se modifica.
+
+Validacion:
+
+- Build y tests del proyecto.
+- Verificacion visual en movil.
+- Verificacion de que el mapa no navega fuera del territorio operativo.
+- Verificacion de que reportes fuera de geofence no entren como reportes validos.
+- Verificacion de que datos sensibles no aparecen en portal publico.
+- Verificacion del agrupamiento y filtros del mapa.
+- Verificacion del calculo de prioridad con casos reproducibles.
+- Verificacion de que solo una alerta principal puede ocupar el foco visual.
+- Verificacion de prefers-reduced-motion.
+- Auditoria en docs/audits/task-013-next-territory-priority.md.
+
+No incluido en Task 013:
+
+- IA para decidir prioridades.
+- Automatizacion de acciones gubernamentales.
+- Prediccion de incidentes.
+- Cobertura nacional.
+- Multi-tenant completo de produccion.
+- Login productivo definitivo si la decision de proveedor todavia no esta cerrada.
+- Modificacion alguna de FoodSPV 2.0.
+
+Impacto:
+
+- Alto. Esta task define la identidad visual y operativa de producto que servira como base para la futura demostracion y venta institucional, sin sacrificar el motor de ingreso ciudadano ni la seguridad de datos.
