@@ -5,6 +5,7 @@ const DEFAULT_RUNTIME_REPORTS_FILE = "data/runtime/reports.json";
 const DEFAULT_REPORT_OVERRIDES_FILE = "data/runtime/report-overrides.json";
 const DEFAULT_REPORT_HISTORY_FILE = "data/runtime/report-history.json";
 const DEFAULT_REPORT_INTAKE_SESSIONS_FILE = "data/runtime/report-intake-sessions.json";
+const DEFAULT_RUNTIME_WORK_ORDERS_FILE = "data/runtime/work-orders.json";
 
 export function getRuntimeReportsFilePath() {
   return path.resolve(process.env.LCH_RUNTIME_REPORTS_FILE || DEFAULT_RUNTIME_REPORTS_FILE);
@@ -71,6 +72,18 @@ export function loadReportHistory() {
 
 export function saveReportHistory(events) {
   saveJsonArray(getReportHistoryFilePath(), events);
+}
+
+export function getRuntimeWorkOrdersFilePath() {
+  return path.resolve(process.env.LCH_RUNTIME_WORK_ORDERS_FILE || DEFAULT_RUNTIME_WORK_ORDERS_FILE);
+}
+
+export function loadRuntimeWorkOrders() {
+  return loadJsonArray(getRuntimeWorkOrdersFilePath(), "Runtime work orders");
+}
+
+export function saveRuntimeWorkOrders(orders) {
+  saveJsonArray(getRuntimeWorkOrdersFilePath(), orders);
 }
 
 export function loadReportIntakeSessions() {
