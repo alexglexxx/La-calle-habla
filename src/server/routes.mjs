@@ -11,6 +11,7 @@ import {
 import { renderAdminPage } from "./admin-page.mjs";
 import { renderReportDetailPage } from "./report-detail-page.mjs";
 import { adminAuthResponse, isAdminRoute, isAdminAuthorized } from "./admin-auth.mjs";
+import { resolveMetaWebhook } from "./meta-webhook-route.mjs";
 
 function json(statusCode, body) {
   return {
@@ -147,6 +148,10 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
 
   if (isAdminRoute(url.pathname) && !isAdminAuthorized(headers)) {
     return adminAuthResponse(headers);
+  }
+
+  if (url.pathname === "/api/webhook/whatsapp") {
+    return resolveMetaWebhook(method, requestUrl, routeOptions);
   }
 
   if (url.pathname === "/health") {
