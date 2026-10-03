@@ -10,6 +10,7 @@ import {
 } from "../services/report-service.mjs";
 import { renderAdminPage } from "./admin-page.mjs";
 import { renderReportDetailPage } from "./report-detail-page.mjs";
+import { adminAuthResponse, isAdminRoute, isAdminAuthorized } from "./admin-auth.mjs";
 
 function json(statusCode, body) {
   return {
@@ -142,6 +143,11 @@ function landingPage() {
 
 export function resolveRoute(method, requestUrl, routeOptions = {}) {
   const url = new URL(requestUrl, "http://127.0.0.1");
+  const headers = routeOptions.headers || {};
+
+  if (isAdminRoute(url.pathname) && !isAdminAuthorized(headers)) {
+    return adminAuthResponse(headers);
+  }
 
   if (url.pathname === "/health") {
     if (method !== "GET") {
