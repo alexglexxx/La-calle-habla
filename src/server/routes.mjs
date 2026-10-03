@@ -12,6 +12,7 @@ import { renderAdminPage } from "./admin-page.mjs";
 import { renderReportDetailPage } from "./report-detail-page.mjs";
 import { adminAuthResponse, isAdminRoute, isAdminAuthorized } from "./admin-auth.mjs";
 import { resolveMetaWebhook } from "./meta-webhook-route.mjs";
+import { createWorkOrder, getWorkOrderById, listWorkOrders, listWorkOrderAreas, transitionWorkOrder, validateWorkOrderEvidence } from "../services/work-order-service.mjs";
 
 function json(statusCode, body) {
   return {
@@ -203,6 +204,57 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
     }
 
     return html(200, renderReportDetailPage());
+  }
+
+  if (url.pathname === "/api/work-orders") {
+    const id = url.searchParams.get("id");
+
+    if (method === "GET") {
+      if (id) {
+        const order = getWorkOrderById(id);
+        if (!order) return json(404, { ok: false, error: "work_order_not_found", id });
+        return json(200, { ok: true, order });
+      }
+      return json(200, {
+        ok: true,
+        count: listWorkOrders().length,
+        workOrders: listWorkOrders(),
+        areas: listWorkOrderAreas()
+      });
+    }
+
+    const parsedBody = parseJsonBody(routeOptions);
+    if (!parsedBody.ok) return parsedBody.response;
+
+    try {
+      if (method === "POST") {
+        if (!parsedBody.body?.reportId) return json(400, { ok: false, error: "missing_report_id" });
+        const result = createWorkOrder(parsedBody.body.reportId, parsedBody.body);
+        if (!result.ok) return json(result.error === "report_not_found" ? 404 : 409, result);
+        return json(201, result);
+      }
+
+      if (method === "PATCH") {
+        if (!id) return json(400, { ok: false, error: "missing_work_order_id" });
+        const nextStatus = parsedBody.body?.status;
+        if (!nextStatus) return json(400, { ok: false, error: "missing_status" });
+        if (parsedBody.body?.evidence) {
+          const evidenceCheck = validateWorkOrderEvidence(parsedBody.body.evidence);
+          if (!evidenceCheck.ok) return json(400, evidenceCheck);
+        }
+        const result = transitionWorkOrder(id, nextStatus, parsedBody.body);
+        if (!result.ok) return json(400, result);
+        return json(200, result);
+      }
+
+      return json(405, { ok: false, error: "method_not_allowed" });
+    } catch (error) {
+      return json(500, {
+        ok: false,
+        error: "work_order_runtime_failed",
+        message: error instanceof Error ? error.message : "Unexpected work-order error."
+      });
+    }
   }
 
   if (url.pathname === "/api/categories") {
