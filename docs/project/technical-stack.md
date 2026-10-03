@@ -4,17 +4,18 @@ Fecha de decision: 2026-07-08
 
 ## Decision
 
-La Calle Habla inicia con un stack minimo sin dependencias externas:
+La Calle Habla mantiene el core de dominio independiente, pero la experiencia web pasa a Next.js a partir de TASK 013:
 
 - Node.js 20 o superior.
-- Servidor HTTP nativo de Node para correr localmente.
+- Next.js para la experiencia web publica y administrativa.
 - TypeScript como contrato de tipos de dominio.
+- El core de dominio, intake y adaptadores de integracion permanecen independientes de React/Next.js.
 - Pruebas con `node --test`.
 - Scripts de validacion propios en `scripts/`.
 
 ## Por que este stack
 
-El proyecto todavia esta validando modelo, flujo y decisiones de producto. Un stack sin framework reduce costo de arranque, evita dependencias tempranas y permite que futuras tasks elijan Next.js, base de datos, mapas o WhatsApp real con mejor informacion.
+El proyecto ya supero la etapa en la que una vista HTML minima aporta suficiente valor. Next.js pasa a ser la capa de experiencia para construir el portal publico de mapa y el dashboard administrativo profesional, mientras el dominio permanece desacoplado para no convertir la UI en el motor del negocio.
 
 La decision no bloquea migrar a un framework web. Solo establece una base ejecutable y verificable.
 
@@ -30,7 +31,10 @@ La decision no bloquea migrar a un framework web. Solo establece una base ejecut
 ## Estructura inicial
 
 - `src/server/`: servidor local minimo.
-- `src/server/admin-page.mjs`: vista administrativa local servida como HTML, con detalle, cambio de estado, notas internas, historial y aviso operativo de privacidad.
+- `src/server/admin-page.mjs`: vista administrativa legacy/local durante la migracion.
+- `src/app/` o estructura equivalente de Next.js: experiencia web publica y administrativa.
+- `src/components/`: componentes visuales reutilizables de mapa, HUD, tarjetas, filtros y admin.
+- `src/services/`: dominio y servicios independientes de la UI.
 - `src/server/report-detail-page.mjs`: vista auxiliar de detalle, cambio de estado, notas internas e historial.
 - `src/lib/`: constantes y logica compartida.
 - `src/data/`: seeds locales de categorias, estados y reportes.
@@ -163,12 +167,18 @@ Los archivos runtime estan ignorados por Git porque pueden contener datos variab
 
 Las pruebas del ingreso expres tambien usan `LCH_REPORT_INTAKE_SESSIONS_FILE` para aislar sesiones temporales.
 
-## Criterio para cambiar de stack
+## Criterio de esta decision
 
-Antes de migrar a Next.js u otro framework, debe existir una task con:
+TASK 013 formaliza la migracion a Next.js por una necesidad concreta: portal publico de mapa + dashboard admin profesional + territorio delimitado + visualizacion de prioridad. La migracion debe conservar el core y evitar duplicar reglas de negocio.
 
 - Necesidad concreta.
 - Impacto en el MVP.
 - Cambios de estructura propuestos.
 - Validaciones nuevas.
 - Auditoria en `docs/audits/`.
+
+## Direccion visual TASK 013
+
+- Portal publico: mapa-first, territorio delimitado, iconografia propia tipo videojuego/HUD, animacion discreta y exploracion sencilla.
+- Admin: misma cartografia y territorio, pero con jerarquia visual sobria, filtros operativos, historial, acciones y analitica.
+- La alerta principal debe ser basada en datos y explicable; rojo/pulso solo cuando el modelo de prioridad la justifique.
