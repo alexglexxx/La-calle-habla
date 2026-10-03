@@ -2,8 +2,9 @@ import { listReports } from "./report-service.mjs";
 import { isInsideTerritory, LCH_TERRITORY } from "../config/territory.mjs";
 import { findPrimaryAttention } from "./report-priority.mjs";
 import { projectReportsToMap } from "./gis-view.mjs";
+import { listWorkOrders } from "./work-order-service.mjs";
 
-const PUBLIC_STATUSES = new Set(["new", "in_review", "validated", "needs_info"]);
+const PUBLIC_STATUSES = new Set(["new", "in_review", "validated", "needs_info", "resolved"]);
 
 function hashString(value) {
   let hash = 2166136261;
@@ -28,7 +29,7 @@ export function getPublicReports() {
       id: report.id,
       title: report.title,
       category: report.category,
-      status: report.status,
+      status: resolvedReportIds.has(report.id) ? "resolved" : report.status,
       priority: report.priority,
       neighborhood: report.neighborhood || report.zone,
       createdAt: report.createdAt,
