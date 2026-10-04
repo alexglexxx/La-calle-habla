@@ -61,6 +61,19 @@ export async function insertReportToSupabase(report) {
   return { ok: true, rows };
 }
 
+export async function findEvidenceByMediaId(mediaId) {
+  if (!isSupabaseConfigured()) return null;
+  const value = encodeURIComponent(String(mediaId || "").trim());
+  if (!value) return null;
+
+  const rows = await supabaseRestRequest(
+    EVIDENCE_PATH + "?media_id=eq." + value + "&select=*&limit=1",
+    { method: "GET" }
+  );
+
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
 export async function insertReportEvidenceToSupabase(evidence) {
   if (!isSupabaseConfigured()) {
     return { ok: false, skipped: true, reason: "supabase_not_configured" };
