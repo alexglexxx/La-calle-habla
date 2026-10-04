@@ -41,6 +41,14 @@ export default function PublicMap({ data }) {
         </div>
       </div>
 
+      <div className="filter-strip-021">
+        {categories.map((category) => (
+          <button key={category} className={filter === category ? "filter-021 active" : "filter-021"} onClick={() => setFilter(category)}>
+            {category === "all" ? "Todos" : CATEGORY_LABEL[category] || category}
+          </button>
+        ))}
+      </div>
+
       {attentionReport && <button className="map-primary-alert" onClick={()=>focusReport(attentionReport.id)}>
         <span className="alert-orb">!</span><span className="alert-text"><small>ATENCIÓN CIUDADANA</small><strong>{attentionReport.title}</strong><em>{attentionReport.neighborhood || "Territorio activo"} · {data.attention.reasons?.[0] || "Prioridad operativa"}</em></span><span className="alert-arrow">↗</span>
       </button>}
