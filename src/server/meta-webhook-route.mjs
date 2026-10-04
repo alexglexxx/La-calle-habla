@@ -7,6 +7,7 @@ import {
   verifyMetaSignature
 } from "../integrations/whatsapp/meta-webhook.mjs";
 import { handleIncomingCitizenMessage } from "../services/report-intake-service.mjs";
+import { persistReportCreated, persistEvidence } from "../services/supabase-persistence.mjs";
 
 function json(statusCode, body) {
   return {
@@ -74,11 +75,23 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
 
   for (const message of messages) {
     const result = handleIncomingCitizenMessage(message);
+    let persistence = { ok: true, skipped: true, reason: "no_report_created" };
+
+    if (result.ok && result.report) {
+      persistence = await persistReportCreated(result.report);
+      if (result.report.evidenceReferences?.length) {
+        for (const evidence of result.report.evidenceReferences) {
+          await persistEvidence(result.report.id, evidence);
+        }
+      }
+    }
+
     results.push({
       messageId: message.messageId,
       ok: result.ok,
       duplicate: Boolean(result.duplicate),
-      reportId: result.report?.id || null
+      reportId: result.report?.id || null,
+      persistence: persistence.ok
     });
   }
 
