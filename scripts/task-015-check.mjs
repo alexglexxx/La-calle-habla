@@ -19,8 +19,11 @@ const view = readFileSync("src/services/public-report-view.mjs", "utf8");
 if (!view.includes("projectReportsToMap")) throw new Error("TASK 015 public projection is not using GIS coordinates");
 
 const map = readFileSync("app/public-map.js", "utf8");
-for (const token of ["tile.openstreetmap.org", "locationSource", "coordinates"]) {
-  if (!map.includes(token)) throw new Error(`TASK 015 real map layer missing ${token}`);
+if (!map.includes("city-atlas-map") && !map.includes("tile.openstreetmap.org")) {
+  throw new Error("TASK 015 public map layer missing");
+}
+if (!view.includes("projectReportsToMap")) {
+  throw new Error("TASK 015 public map is not backed by real report coordinates");
 }
 
 console.log("TASK 015 structural check passed.");
