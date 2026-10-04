@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Map, Marker } from "maplibre-gl";
 
-// TASK 015 compatibility: the old raster layer used tile.openstreetmap.org;
-// the production renderer is now OpenFreeMap vector cartography backed by OSM.
+// Public cartography uses OpenFreeMap vector tiles with OpenStreetMap data.
+// Attribution is rendered by MapLibre and reinforced in the public footer.
 
 const CATEGORY_ICON = {
   bache: "◉",
@@ -43,8 +43,11 @@ const STATUS_LABEL = {
   needs_info: "Requiere información"
 };
 
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/bright";
-const MIN_ZOOM = 11;
+// Liberty is the cleaner maintained OpenFreeMap style and keeps the real street
+// network readable at the default city view on mobile and desktop.
+const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+const INITIAL_ZOOM = 14;
+const MIN_ZOOM = 12;
 const MAX_ZOOM = 18;
 
 function validCoordinate(report) {
@@ -65,7 +68,7 @@ export default function PublicMap({ data }) {
   const markersRef = useRef([]);
   const [selectedId, setSelectedId] = useState(null);
   const [filter, setFilter] = useState("all");
-  const [zoom, setZoom] = useState(13);
+  const [zoom, setZoom] = useState(INITIAL_ZOOM);
   const [mapReady, setMapReady] = useState(false);
   const [mapError, setMapError] = useState(false);
 
@@ -88,16 +91,17 @@ export default function PublicMap({ data }) {
       container: mapContainerRef.current,
       style: MAP_STYLE,
       center: [data.territory.center.longitude, data.territory.center.latitude],
-      zoom: 13,
+      zoom: INITIAL_ZOOM,
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
       attributionControl: true,
+      renderWorldCopies: false,
       dragRotate: false,
       pitchWithRotate: false,
       touchPitch: false,
       maxBounds: [
-        [data.territory.bounds.west - 0.035, data.territory.bounds.south - 0.025],
-        [data.territory.bounds.east + 0.035, data.territory.bounds.north + 0.025]
+        [data.territory.bounds.west - 0.015, data.territory.bounds.south - 0.015],
+        [data.territory.bounds.east + 0.015, data.territory.bounds.north + 0.015]
       ]
     });
 
@@ -105,14 +109,11 @@ export default function PublicMap({ data }) {
 
     const handleLoad = () => {
       setMapReady(true);
-      map.fitBounds(
-        [
-          [data.territory.bounds.west, data.territory.bounds.south],
-          [data.territory.bounds.east, data.territory.bounds.north]
-        ],
-        { padding: { top: 92, right: 30, bottom: 62, left: 30 }, maxZoom: 13 }
-      );
-      setZoom(Math.round(map.getZoom() * 10) / 10);
+      map.jumpTo({
+        center: [data.territory.center.longitude, data.territory.center.latitude],
+        zoom: INITIAL_ZOOM
+      });
+      setZoom(INITIAL_ZOOM);
     };
 
     const handleZoom = () => setZoom(Math.round(map.getZoom() * 10) / 10);
@@ -174,13 +175,11 @@ export default function PublicMap({ data }) {
   const resetView = () => {
     const map = mapRef.current;
     if (!map) return;
-    map.fitBounds(
-      [
-        [data.territory.bounds.west, data.territory.bounds.south],
-        [data.territory.bounds.east, data.territory.bounds.north]
-      ],
-      { padding: { top: 92, right: 30, bottom: 62, left: 30 }, maxZoom: 13, duration: 450 }
-    );
+    map.flyTo({
+      center: [data.territory.center.longitude, data.territory.center.latitude],
+      zoom: INITIAL_ZOOM,
+      duration: 450
+    });
   };
 
   return (
@@ -204,10 +203,6 @@ export default function PublicMap({ data }) {
 
       <div className="game-map real-map real-map-v3">
         <div ref={mapContainerRef} className="maplibre-container" aria-label="Mapa de calles de Puerto Vallarta" />
-        <div className="map-theme-wash" aria-hidden="true" />
-        <div className="map-vignette" aria-hidden="true" />
-
-        <div className="territory-frame" aria-hidden="true" />
         <div className="territory-label">PUERTO VALLARTA · TERRITORIO ACTIVO</div>
         <div className="map-compass real-compass"><span>N</span><b>⌃</b></div>
 
@@ -264,7 +259,7 @@ export default function PublicMap({ data }) {
           <span><i className="legend-dot high" /> Atención</span>
           <span><i className="legend-dot urgent" /> Prioridad</span>
         </div>
-        <span className="territory-lock">© OpenStreetMap · OpenFreeMap · Datos ciudadanos</span>
+        <span className="territory-lock">© OpenFreeMap · © OpenStreetMap contributors · Datos ciudadanos</span>
       </div>
     </section>
   );
