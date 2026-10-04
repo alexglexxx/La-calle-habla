@@ -2,9 +2,9 @@ import { listReports } from "./report-service.mjs";
 import { isInsideTerritory, LCH_TERRITORY } from "../config/territory.mjs";
 import { findPrimaryAttention } from "./report-priority.mjs";
 import { projectReportsToMap } from "./gis-view.mjs";
-import { listWorkOrders } from "./work-order-service.mjs";
+import { getPublicMapModel } from "./map-view.mjs";
 
-const PUBLIC_STATUSES = new Set(["new", "in_review", "validated", "needs_info", "resolved"]);
+const PUBLIC_STATUSES = new Set(["new", "in_review", "validated", "needs_info"]);
 
 function hashString(value) {
   let hash = 2166136261;
@@ -23,14 +23,13 @@ function projectPoint(report) {
 }
 
 export function getPublicReports() {
-  const resolvedReportIds = new Set(listWorkOrders({ status: "resolved" }).map((order) => order.reportId));
   const reports = listReports()
     .filter((report) => PUBLIC_STATUSES.has(report.status))
     .map((report) => ({
       id: report.id,
       title: report.title,
       category: report.category,
-      status: resolvedReportIds.has(report.id) ? "resolved" : report.status,
+      status: report.status,
       priority: report.priority,
       neighborhood: report.neighborhood || report.zone,
       createdAt: report.createdAt,
@@ -50,6 +49,7 @@ export function getPublicPortalData() {
 
   return {
     territory: LCH_TERRITORY,
+    map: getPublicMapModel(),
     reports,
     stats: {
       active: reports.length,
