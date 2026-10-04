@@ -7,7 +7,7 @@ const CATEGORY_LABEL = { bache:"Baches", basura:"Basura", "fuga-de-agua":"Fugas"
 const STATUS_LABEL = { new:"Recibido", in_review:"En revisión", validated:"Validado", needs_info:"Requiere información" };
 const TILE_SIZE = 256;
 const MIN_ZOOM = 12;
-const MAX_ZOOM = 15;
+const MAX_ZOOM = 16;
 
 function clampZoom(value) { return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, value)); }
 function longitudeToTileX(longitude, zoom) { return ((longitude + 180) / 360) * 2 ** zoom; }
@@ -58,6 +58,10 @@ export default function PublicMap({ data }) {
     return { left: "50%", top: "50%", transform: `translate(-50%,-50%) translate(${x}px,${y}px)` };
   };
 
+  const mapLayerStyle = { position: "absolute", inset: 0, overflow: "hidden", background: "#dce7e4" };
+  const tileCanvasStyle = { position: "absolute", left: "50%", top: "50%", width: 1, height: 1 };
+  const tileStyle = { position: "absolute", width: TILE_SIZE, height: TILE_SIZE, maxWidth: "none", display: "block" };
+
   return (
     <section className="map-stage real-cartography-stage" aria-label={`Mapa ciudadano de ${data.territory.name}`}>
       <div className="map-toolbar real-map-toolbar">
@@ -68,11 +72,11 @@ export default function PublicMap({ data }) {
       </div>
 
       <div className="game-map real-map real-map-v2">
-        <div className="osm-layer" aria-hidden="true">
-          <div className="osm-tiles" style={{ left: "50%", top: "50%" }}>
-            {tiles.map((tile) => <img key={tile.key} src={tile.src} alt="" className="osm-tile" style={{ left: tile.left, top: tile.top }} />)}
+        <div className="osm-layer" aria-hidden="true" style={mapLayerStyle}>
+          <div className="osm-tiles" style={tileCanvasStyle}>
+            {tiles.map((tile) => <img key={tile.key} src={tile.src} alt="" className="osm-tile" style={{ ...tileStyle, left: tile.left, top: tile.top }} />)}
           </div>
-          <div className="cartography-wash"/>
+          <div className="cartography-wash" style={{ position: "absolute", inset: 0, background: "linear-gradient(rgba(245,249,246,.08),rgba(245,249,246,.08))", pointerEvents: "none" }} />
         </div>
 
         <div className="territory-frame" aria-hidden="true"/>
