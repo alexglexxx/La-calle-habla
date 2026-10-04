@@ -19,7 +19,7 @@ const view = readFileSync("src/services/public-report-view.mjs", "utf8");
 if (!view.includes("projectReportsToMap")) throw new Error("TASK 015 public projection is not using GIS coordinates");
 
 const map = readFileSync("app/public-map.js", "utf8");
-if (!map.includes("city-atlas-map") && !map.includes("tile.openstreetmap.org")) {
+if (!map.includes("city-atlas-map") && !map.includes("tile.openstreetmap.org") && !map.includes("tiles.openfreemap.org")) {
   throw new Error("TASK 015 public map layer missing");
 }
 if (!view.includes("projectReportsToMap")) {
