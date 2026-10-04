@@ -6,128 +6,135 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado: TASK-013 implementada en estructura/UI: Next.js + portal mapa-first + dashboard operativo + territorio delimitado + prioridad explicable
+Estado actual: TASK-019 implementada. Plataforma web mapa-first sobre Next.js, territorio delimitado, prioridad explicable, Supabase productivo preparado y webhook WhatsApp con idempotencia durable.
 
 ## Objetivo MVP
 
-Crear una plataforma minima para recibir o simular reportes ciudadanos de problemas urbanos, ordenarlos en una base de datos y permitir revision administrativa basica con estados, categorias, evidencia y ubicacion.
+Crear una plataforma mínima para recibir reportes ciudadanos de problemas urbanos, ordenarlos en una base de datos y permitir revisión administrativa básica con estados, categorías, evidencia y ubicación.
 
-El MVP debe validar el flujo ciudadano y administrativo antes de integrar WhatsApp real, mapas, IA o deploy productivo.
+El MVP debe validar el flujo ciudadano y administrativo antes de activar cualquier comunicación o gestión institucional.
 
 ## Estado operativo actual
 
-El proyecto ya expone datos locales de lectura con seeds, permite crear reportes locales por POST, tiene una vista administrativa local, permite cambiar estado interno, conserva historial local por reporte, aplica una politica operativa provisional de privacidad del MVP y cuenta con un motor interno de ingreso exprés anónimo compatible con WhatsApp:
+- Portal público mapa-first.
+- Dashboard administrativo protegido.
+- Territorio MVP delimitado para Puerto Vallarta.
+- Motor de prioridad explicable y una alerta primaria.
+- Proyección pública sin datos sensibles.
+- Geometría GIS versionada y mapa con coordenadas reales cuando existen.
+- Supabase productivo La-calle-habla creado y migraciones principales aplicadas.
+- RLS habilitado en las tablas operativas.
+- Storage report-evidence privado con límite de 5 MB y JPEG/PNG/WebP.
+- Persistencia de reportes y eventos de historial preparada para Supabase.
+- Webhook Meta/WhatsApp normalizado.
+- Idempotencia durable por message_id en Supabase para soportar reintentos y múltiples instancias.
+- El flujo local sigue disponible para simulación/desarrollo.
+- Los cambios de estado administrativos siguen siendo internos y no representan resolución oficial.
 
-- Categorias.
-- Estados.
-- Reportes ciudadanos ficticios.
-- Reportes locales creados en desarrollo.
-- Estadisticas basicas.
-- Panel local en `/admin`.
-- Detalle local dentro de `/admin` y ruta auxiliar `/admin/report?id=REPORT_ID`.
-- Cambios de estado internos con `PATCH /api/reports?id=REPORT_ID`.
-- Notas internas con `PATCH /api/reports?id=REPORT_ID`.
-- Historial interno cronologico con `GET /api/report-history?id=REPORT_ID`.
-- Aviso corto de privacidad en el formulario local.
-- Reconocimiento versionado `mvp-1` para reportes nuevos.
-- Consentimiento explicito para telefono, ubicacion precisa o evidencia.
-- Clasificacion y retencion provisional documentadas en `docs/project/privacy-and-data-retention.md`.
-- Contrato normalizado de mensajes ciudadanos.
-- Sesiones temporales por `phoneId` pseudonimo.
-- Flujo Foto -> ubicacion compartida o referencia escrita -> listo.
-- Idempotencia por `messageId`, rate limiting local y resolucion determinista de referencias.
-- Simulador local `npm run simulate:report-intake`.
+## TASK 012 — frontera WhatsApp/Meta y persistencia productiva
 
-Endpoints disponibles:
+Implementada la arquitectura de frontera:
 
-- `GET /health`
-- `GET /api/categories`
-- `GET /api/statuses`
-- `GET /api/reports`
-- `GET /api/reports?id=REPORT_ID`
-- `GET /api/reports?category=CATEGORIA`
-- `GET /api/reports?status=STATUS`
-- `GET /api/stats`
-- `POST /api/reports`
-- `GET /admin`
-- `GET /admin/report?id=REPORT_ID`
-- `PATCH /api/reports?id=REPORT_ID`
-- `GET /api/report-history?id=REPORT_ID`
+- Verificación de webhook Meta.
+- Validación HMAC x-hub-signature-256.
+- Normalización de mensajes.
+- Descarga de media preparada.
+- Cliente REST Supabase server-only.
+- Contrato de tablas y Storage privado.
+- Función compatible con Vercel.
 
-Los reportes creados por POST se guardan en `data/runtime/reports.json`, ignorado por Git. Los cambios de estado se guardan como overrides en `data/runtime/report-overrides.json`, tambien ignorado por Git. El historial interno se guarda en `data/runtime/report-history.json`, tambien ignorado por Git. Las sesiones del ingreso expres se guardan en `data/runtime/report-intake-sessions.json`, tambien ignorado por Git.
+## TASK 013 — experiencia web
 
-## Stack inicial
+Implementada la primera capa web profesional:
 
-Decision actual:
+- Portal público mapa-first.
+- Dashboard admin sobrio.
+- KPIs, filtros, cola y panel de detalle.
+- Motor de prioridad separado del componente visual.
+- Proxy de acceso administrativo.
+- Proyección pública sanitizada.
 
-- Node.js 20 o superior.
-- Servidor HTTP nativo de Node para correr localmente.
-- TypeScript como contrato de tipos de dominio.
-- Pruebas con `node --test`.
-- Scripts propios para validacion estructural y build check.
-- Sin dependencias externas todavia.
+## TASK 014 — frontera territorial
 
-La decision esta documentada en `docs/project/technical-stack.md`.
+Implementada y versionada la validación territorial:
 
-## TASK 012 completada: persistencia productiva y frontera WhatsApp/Meta
+- Bounds + polígono.
+- Rechazo de ubicaciones fuera del territorio.
+- Validación de referencias geográficas inferidas.
+- Pruebas de frontera.
 
-Se preparó exclusivamente en La Calle Habla la arquitectura para Supabase, Storage privado, frontera Meta/WhatsApp y función Node compatible con Vercel.
+Limitación deliberada: la geometría sigue siendo una representación MVP versionada, no un límite municipal autoritativo.
 
-FoodSPV 2.0 no fue modificado.
+## TASK 015 — GIS
 
-Pendiente de activación: proyecto Supabase objetivo, migración aplicada, pruebas contra Supabase, credenciales Meta, prueba real del webhook y deploy público.
+Implementada la primera capa GIS real:
 
-## TASK 013 implementada
+- Coordenadas reales de reportes.
+- Plan de tiles OSM.
+- Marcadores dinámicos.
+- Sin coordenadas inventadas para reportes públicos.
+- Proyección pública sanitizada.
 
-Se construyo la primera capa web profesional sobre Next.js App Router.
+Pendiente: sustituir progresivamente el mapa base de tiles por el futuro mapa temático ilustrado de La Calle Habla.
 
-- Portal publico mapa-first con territorio delimitado.
-- Dashboard admin sobrio con filtros, cola, KPIs y alerta principal.
-- Motor de prioridad explicable separado del componente visual.
-- Proxy de acceso administrativo temporal.
-- Proyeccion publica sin datos sensibles.
-- Vercel conserva el webhook Meta mediante rewrite especifico.
+## TASK 016 — arquitectura de atención
 
-Pendiente para cierre tecnico: ejecutar install/build/test en runtime real, verificacion visual movil, definir proveedor GIS y reemplazar la geometria/proyeccion de demostracion por datos geograficos reales. Supabase/Meta siguen pendientes de activacion de Task 012.
+Preparada la arquitectura de work orders sin activar gestión institucional.
 
-## Riesgos
+No se consideran activos:
+- envío a dependencias;
+- correo institucional;
+- acuses oficiales;
+- reparación;
+- evidencia de obra;
+- estado oficial de resolución.
 
-- Next.js queda definido como framework de la experiencia web desde TASK 013.
-- La base de datos productiva Supabase sigue pendiente de activacion.
-- TypeScript esta definido como contrato, pero aun no hay compilacion con `tsc`.
-- La persistencia local en JSON no es apta para concurrencia alta.
-- La vista `/admin` usa Basic Auth como barrera de MVP cuando se accede fuera de localhost; no es identidad productiva.
-- Los cambios de estado son internos de la plataforma y no implican resolucion oficial.
-- WhatsApp real puede agregar friccion legal, tecnica y de costos si se integra demasiado pronto.
-- Ubicacion, fotos y telefono pueden ser datos sensibles.
-- El producto puede malinterpretarse como sistema oficial de gobierno si el lenguaje no es cuidadoso.
+## TASK 017 — endurecimiento Supabase
 
-## Decisiones abiertas
+Aplicados índices y controles de persistencia server-only.
 
-- Base de datos.
+## TASK 018 — conexión real de persistencia
 
-- Diseño final de geofence y modelo de territorio.
-- Modelo exacto de prioridad/alerta.
-- Proveedor de identidad administrativa productiva.
-- Proveedor de WhatsApp.
-- Adaptador real de WhatsApp/Meta cuando existan credenciales, webhook publico y decision documentada.
-- Proveedor de mapas.
-- Aviso de privacidad legal definitivo.
-- Criterios de anonimato.
-- Definicion exacta de roles administrativos.
-- Si el MVP continuara con JSON local o migrara a base de datos.
-- Politica legal de retencion y eliminacion antes de produccion.
+- Proyecto Supabase La-calle-habla creado.
+- Migraciones iniciales y hardening aplicados.
+- Índices de FK corregidos.
+- Vercel configurado con SUPABASE_URL y SUPABASE_REPORT_BUCKET.
+- Persistencia de reportes e historial conectada al flujo de servidor.
+- RLS y Storage privado verificados a nivel de esquema.
+- Sin activación institucional.
 
-## TASK 014 implementada: geofence real y frontera de ubicación
+Nota: SUPABASE_SERVICE_ROLE_KEY sigue siendo una credencial server-only y debe existir en Vercel antes de considerar completa la ejecución real del backend.
 
-Se endureció el contrato territorial que había quedado como presentación MVP en TASK 013.
+## TASK 019 — idempotencia durable del webhook
 
-- `isInsideTerritory` ahora valida primero bounds y después el polígono configurado.
-- `validateTerritoryLocation` distingue coordenadas inválidas de ubicaciones fuera del territorio.
-- El ingreso ciudadano de WhatsApp rechaza ubicaciones compartidas fuera del territorio habilitado.
-- Las referencias geográficas previas usadas para inferencia se limitan a reportes dentro del territorio.
-- La sesión no avanza ni crea reporte cuando una ubicación compartida es rechazada.
-- Se agregaron pruebas reproducibles para punto válido, coordenadas inválidas, punto externo y flujo WhatsApp.
-- El check estructural de TASK 014 quedó integrado al `npm run build`.
+Implementada:
 
-Limitación deliberada: el polígono sigue siendo una geometría MVP versionada, no un límite municipal autoritativo. La siguiente capa GIS debe sustituir esta geometría sin cambiar el contrato de negocio.
+- Claim de message_id antes de procesar.
+- Estado processing.
+- Detección durable de duplicados.
+- Recuperación de claims atascados después de 5 minutos.
+- Estados finales processed, rejected y failed.
+- El webhook evita reprocesar el mismo evento en reintentos de Meta.
+- No se almacena el número telefónico crudo como parte del claim.
+
+## Próxima frontera
+
+### TASK 020 — evidencia real
+
+Meta media → descarga validada → Supabase Storage privado → report_evidence.
+
+Después de eso: prueba end-to-end controlada y migración progresiva de las lecturas operativas desde JSON local hacia Supabase.
+
+## No activar todavía
+
+- Comunicación con dependencias.
+- Órdenes de trabajo reales.
+- Acuse institucional.
+- Estado oficial de resolución.
+- Reparaciones.
+- Evidencia de obra terminada.
+- Cualquier lenguaje que presente La Calle Habla como sistema oficial de gobierno.
+
+## Visión de producto
+
+La capa pública evolucionará a un mapa temático ilustrado: geografía neutral e inmutable, con una capa visual intercambiable por municipio/tema. Los reportes ciudadanos permanecerán dinámicos sobre esa base.
