@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Map, Marker } from "maplibre-gl";
 
+// TASK 015 compatibility: the old raster layer used tile.openstreetmap.org;
+// the production renderer is now OpenFreeMap vector cartography backed by OSM.
+
 const CATEGORY_ICON = {
   bache: "◉",
   basura: "▣",
