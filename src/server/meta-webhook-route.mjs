@@ -8,6 +8,11 @@ import {
 } from "../integrations/whatsapp/meta-webhook.mjs";
 import { handleIncomingCitizenMessage } from "../services/report-intake-service.mjs";
 import { persistReportCreated, persistEvidence } from "../services/supabase-persistence.mjs";
+import {
+  claimProcessedMessage,
+  completeProcessedMessage,
+  failProcessedMessage
+} from "../services/supabase-message-idempotency.mjs";
 
 function json(statusCode, body) {
   return {
@@ -74,25 +79,79 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
   const results = [];
 
   for (const message of messages) {
-    const result = handleIncomingCitizenMessage(message);
-    let persistence = { ok: true, skipped: true, reason: "no_report_created" };
+    const claim = await claimProcessedMessage(message);
 
-    if (result.ok && result.report) {
-      persistence = await persistReportCreated(result.report);
-      if (result.report.evidenceReferences?.length) {
-        for (const evidence of result.report.evidenceReferences) {
-          await persistEvidence(result.report.id, evidence);
-        }
-      }
+    if (!claim.ok) {
+      results.push({
+        messageId: message.messageId,
+        ok: false,
+        duplicate: false,
+        reportId: null,
+        persistence: false,
+        error: claim.error
+      });
+      continue;
     }
 
-    results.push({
-      messageId: message.messageId,
-      ok: result.ok,
-      duplicate: Boolean(result.duplicate),
-      reportId: result.report?.id || null,
-      persistence: persistence.ok
-    });
+    if (claim.duplicate) {
+      results.push({
+        messageId: message.messageId,
+        ok: true,
+        duplicate: true,
+        reportId: claim.reportId || null,
+        persistence: true,
+        state: claim.state
+      });
+      continue;
+    }
+
+    try {
+      const result = handleIncomingCitizenMessage(message);
+      let persistence = { ok: true, skipped: true, reason: "no_report_created" };
+
+      if (result.ok && result.report) {
+        persistence = await persistReportCreated(result.report);
+
+        if (result.report.evidenceReferences?.length) {
+          for (const evidence of result.report.evidenceReferences) {
+            await persistEvidence(result.report.id, evidence);
+          }
+        }
+      }
+
+      await completeProcessedMessage(message.messageId, {
+        reportId: result.report?.id || null,
+        status: result.ok ? "processed" : "rejected",
+        payload: {
+          result: result.error || null,
+          duplicate: Boolean(result.duplicate),
+          rateLimited: Boolean(result.rateLimited),
+          locationRejected: Boolean(result.locationRejected)
+        }
+      });
+
+      results.push({
+        messageId: message.messageId,
+        ok: result.ok,
+        duplicate: Boolean(result.duplicate),
+        reportId: result.report?.id || null,
+        persistence: persistence.ok
+      });
+    } catch (error) {
+      await failProcessedMessage(
+        message.messageId,
+        error instanceof Error ? error.message : "Unexpected webhook processing error."
+      );
+
+      results.push({
+        messageId: message.messageId,
+        ok: false,
+        duplicate: false,
+        reportId: null,
+        persistence: false,
+        error: "processing_failed"
+      });
+    }
   }
 
   return json(200, {
