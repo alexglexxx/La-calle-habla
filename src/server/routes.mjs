@@ -13,6 +13,7 @@ import { renderReportDetailPage } from "./report-detail-page.mjs";
 import { adminAuthResponse, isAdminRoute, isAdminAuthorized } from "./admin-auth.mjs";
 import { resolveMetaWebhook } from "./meta-webhook-route.mjs";
 import { createWorkOrder, getWorkOrderById, listWorkOrders, listWorkOrderAreas, transitionWorkOrder, validateWorkOrderEvidence } from "../services/work-order-service.mjs";
+import { persistReportCreated, persistHistoryEvent } from "../services/supabase-persistence.mjs";
 
 function json(statusCode, body) {
   return {
@@ -143,7 +144,7 @@ function landingPage() {
 </html>`;
 }
 
-export function resolveRoute(method, requestUrl, routeOptions = {}) {
+export async function resolveRoute(method, requestUrl, routeOptions = {}) {
   const url = new URL(requestUrl, "http://127.0.0.1");
   const headers = routeOptions.headers || {};
 
@@ -306,9 +307,12 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
           });
         }
 
+        const persistence = await persistReportCreated(result.report);
+
         return json(201, {
           ok: true,
-          report: result.report
+          report: result.report,
+          persistence
         });
       } catch (error) {
         return json(500, {
@@ -353,10 +357,15 @@ export function resolveRoute(method, requestUrl, routeOptions = {}) {
           });
         }
 
+        const persistence = result.historyEvent
+          ? await persistHistoryEvent(result.historyEvent)
+          : { ok: true, skipped: true, reason: "no_history_event" };
+
         return json(200, {
           ok: true,
           report: result.report,
           historyEvent: result.historyEvent,
+          persistence,
           changed: result.changed,
           noop: result.noop,
           message: result.message
