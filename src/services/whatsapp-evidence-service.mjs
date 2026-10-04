@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import { getMetaMediaUrl, downloadMetaMedia } from "../integrations/whatsapp/meta-media.mjs";
 import { uploadSupabaseObject } from "../integrations/supabase/supabase-rest.mjs";
-import { persistEvidence } from "./supabase-persistence.mjs";
+import { findEvidenceByMediaId, persistEvidence } from "./supabase-persistence.mjs";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const EXTENSIONS = Object.freeze({
@@ -44,6 +44,19 @@ function safeStorageKey(reportId, mediaId, mimeType) {
 export async function persistWhatsAppEvidence({ reportId, evidence }) {
   if (!reportId || !evidence?.mediaId || !evidence?.messageId) {
     throw new Error("reportId, evidence.mediaId and evidence.messageId are required.");
+  }
+
+  const existing = await findEvidenceByMediaId(evidence.mediaId);
+  if (existing?.storage_key) {
+    return {
+      ok: true,
+      duplicate: true,
+      reportId,
+      storageKey: existing.storage_key,
+      mimeType: existing.mime_type || null,
+      sizeBytes: existing.size_bytes || null,
+      sha256: existing.sha256 || null
+    };
   }
 
   const accessToken = getMetaAccessToken();
