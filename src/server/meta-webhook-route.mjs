@@ -7,7 +7,8 @@ import {
   verifyMetaSignature
 } from "../integrations/whatsapp/meta-webhook.mjs";
 import { handleIncomingCitizenMessage } from "../services/report-intake-service.mjs";
-import { persistReportCreated, persistEvidence } from "../services/supabase-persistence.mjs";
+import { persistReportCreated } from "../services/supabase-persistence.mjs";
+import { persistWhatsAppEvidence } from "../services/whatsapp-evidence-service.mjs";
 import {
   claimProcessedMessage,
   completeProcessedMessage,
@@ -114,7 +115,10 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
 
         if (result.report.evidenceReferences?.length) {
           for (const evidence of result.report.evidenceReferences) {
-            await persistEvidence(result.report.id, evidence);
+            await persistWhatsAppEvidence({
+              reportId: result.report.id,
+              evidence
+            });
           }
         }
       }
