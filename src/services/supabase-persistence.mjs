@@ -94,3 +94,64 @@ export async function insertReportHistoryToSupabase(event) {
 
   return { ok: true, rows };
 }
+
+
+export async function persistReportCreated(report) {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "supabase_not_configured" };
+  }
+
+  try {
+    await insertReportToSupabase(report);
+    return { ok: true, persisted: true, reportId: report.id };
+  } catch (error) {
+    throw new Error(
+      "Supabase report persistence failed: " +
+      (error instanceof Error ? error.message : "Unexpected error.")
+    );
+  }
+}
+
+export async function persistEvidence(reportId, evidence) {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "supabase_not_configured" };
+  }
+
+  const row = {
+    report_id: reportId,
+    type: evidence.type || "photo",
+    storage_key: evidence.storageKey || null,
+    mime_type: evidence.mimeType || null,
+    size_bytes: Number.isInteger(evidence.sizeBytes) ? evidence.sizeBytes : null,
+    sha256: evidence.sha256 || null,
+    media_id: evidence.mediaId || null,
+    message_id: evidence.messageId || null,
+    caption: evidence.caption || null,
+    captured_at: evidence.capturedAt || null,
+    received_at: evidence.receivedAt || new Date().toISOString(),
+    metadata: evidence.metadata || null
+  };
+
+  await insertReportEvidenceToSupabase(row);
+  return { ok: true, persisted: true, reportId };
+}
+
+export async function persistHistoryEvent(event) {
+  if (!isSupabaseConfigured()) {
+    return { ok: true, skipped: true, reason: "supabase_not_configured" };
+  }
+
+  const row = {
+    id: event.id,
+    report_id: event.reportId,
+    type: event.type,
+    created_at: event.createdAt,
+    actor: event.actor,
+    note: event.note || null,
+    previous_status: event.previousStatus || null,
+    new_status: event.newStatus || null
+  };
+
+  await insertReportHistoryToSupabase(row);
+  return { ok: true, persisted: true, reportId: event.reportId };
+}
