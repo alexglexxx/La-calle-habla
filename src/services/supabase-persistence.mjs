@@ -109,6 +109,68 @@ export async function insertReportHistoryToSupabase(event) {
 }
 
 
+export async function listReportsFromSupabase() {
+  if (!isSupabaseConfigured()) return [];
+
+  const select = [
+    "id",
+    "title",
+    "description",
+    "category",
+    "status",
+    "location_text",
+    "neighborhood",
+    "zone",
+    "priority",
+    "source",
+    "evidence_count",
+    "citizen_alias",
+    "anonymous_alias",
+    "location_precision",
+    "classification_status",
+    "intake_channel",
+    "intake_source",
+    "location_details",
+    "location_resolution_summary",
+    "created_at",
+    "updated_at"
+  ].join(",");
+
+  const rows = await supabaseRestRequest(
+    REPORTS_PATH +
+      "?status=in.(new,in_review,validated,needs_info)" +
+      "&select=" + encodeURIComponent(select) +
+      "&order=created_at.desc",
+    { method: "GET" }
+  );
+
+  return Array.isArray(rows)
+    ? rows.map((row) => ({
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        status: row.status,
+        locationText: row.location_text,
+        neighborhood: row.neighborhood,
+        zone: row.zone,
+        priority: row.priority,
+        source: row.source,
+        evidenceCount: row.evidence_count,
+        citizenAlias: row.citizen_alias,
+        anonymousAlias: row.anonymous_alias,
+        locationPrecision: row.location_precision,
+        classificationStatus: row.classification_status,
+        intakeChannel: row.intake_channel,
+        intakeSource: row.intake_source,
+        locationDetails: row.location_details,
+        locationResolutionSummary: row.location_resolution_summary,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at
+      }))
+    : [];
+}
+
 export async function persistReportCreated(report) {
   if (!isSupabaseConfigured()) {
     return { ok: true, skipped: true, reason: "supabase_not_configured" };
