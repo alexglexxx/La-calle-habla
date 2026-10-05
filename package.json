@@ -6,8 +6,10 @@
   "description": "Plataforma ciudadana para reportar problemas urbanos por WhatsApp.",
   "scripts": {
     "dev": "next dev",
+    "predev": "node scripts/copy-maplibre-worker.mjs",
     "start": "next start",
     "lint": "node scripts/validate-project.mjs",
+    "prebuild": "node scripts/copy-maplibre-worker.mjs",
     "build": "next build && node scripts/build-check.mjs && node scripts/task-013-check.mjs && node scripts/task-014-check.mjs && node scripts/task-015-check.mjs && node scripts/task-016-check.mjs && node scripts/task-017-check.mjs && node scripts/task-019-check.mjs && node scripts/task-020-check.mjs && node scripts/task-021-check.mjs",
     "test": "node --test",
     "simulate:report-intake": "node scripts/simulate-report-intake.mjs"
