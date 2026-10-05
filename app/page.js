@@ -28,6 +28,7 @@ export default async function HomePage() {
           <h1>Lo que pasa en la calle,<br /><em>se ve en el mapa.</em></h1>
           <p>Explora reportes ciudadanos de problemas urbanos dentro del territorio de {data.territory.name}.</p>
         </div>
+        <a className="report-cta" href="/reportar">+ Reportar un problema</a>
         <div className="public-stat">
           <span>{data.stats.active}</span>
           <small>reportes activos</small>
@@ -35,6 +36,7 @@ export default async function HomePage() {
       </section>
 
       <PublicMap data={data} />
+      <a className="map-report-cta" href="/reportar">📸 Reportar un problema en esta calle</a>
     </main>
   );
 }
