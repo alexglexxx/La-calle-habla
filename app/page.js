@@ -1,5 +1,5 @@
 import { getPublicPortalData } from "../src/services/public-report-view.mjs";
-import PublicMap from "./public-map";
+import PublicMap from "./public-map-client";
 
 export const dynamic = "force-dynamic";
 
