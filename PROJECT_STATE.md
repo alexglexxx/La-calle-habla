@@ -6,7 +6,7 @@ Nombre: La Calle Habla
 
 Fecha de arranque: 2026-07-08
 
-Estado actual: TASK-019 implementada. Plataforma web mapa-first sobre Next.js, territorio delimitado, prioridad explicable, Supabase productivo preparado y webhook WhatsApp con idempotencia durable.
+Estado actual: TASK-024 implementada. MVP mapa-first sobre Next.js con cartografía real de Puerto Vallarta mediante Leaflet + OpenStreetMap raster, reportes ciudadanos con coordenadas reales, filtros y selección de reportes; Supabase productivo preparado y webhook WhatsApp con evidencia e idempotencia durable.
 
 ## Objetivo MVP
 
@@ -22,11 +22,15 @@ El MVP debe validar el flujo ciudadano y administrativo antes de activar cualqui
 - Motor de prioridad explicable y una alerta primaria.
 - Proyección pública sin datos sensibles.
 - Geometría GIS versionada y mapa con coordenadas reales cuando existen.
+- Cartografía pública real con Leaflet + tiles raster de OpenStreetMap.
+- Reportes visibles como puntos sobre calles reales.
+- Filtros por categoría y selección/tap de reportes conservados.
 - Supabase productivo La-calle-habla creado y migraciones principales aplicadas.
 - RLS habilitado en las tablas operativas.
 - Storage report-evidence privado con límite de 5 MB y JPEG/PNG/WebP.
 - Persistencia de reportes y eventos de historial preparada para Supabase.
 - Webhook Meta/WhatsApp normalizado.
+- Evidencia multimedia conectada a Storage privado.
 - Idempotencia durable por message_id en Supabase para soportar reintentos y múltiples instancias.
 - El flujo local sigue disponible para simulación/desarrollo.
 - Los cambios de estado administrativos siguen siendo internos y no representan resolución oficial.
@@ -75,7 +79,7 @@ Implementada la primera capa GIS real:
 - Sin coordenadas inventadas para reportes públicos.
 - Proyección pública sanitizada.
 
-Pendiente: sustituir progresivamente el mapa base de tiles por el futuro mapa temático ilustrado de La Calle Habla.
+La cartografía del MVP usa tiles raster OSM para priorizar compatibilidad y funcionamiento móvil.
 
 ## TASK 016 — arquitectura de atención
 
@@ -117,13 +121,51 @@ Implementada:
 - El webhook evita reprocesar el mismo evento en reintentos de Meta.
 - No se almacena el número telefónico crudo como parte del claim.
 
+## TASK 020 — evidencia real
+
+Implementada:
+
+- Media de WhatsApp → descarga validada → Supabase Storage privado → report_evidence.
+- Persistencia idempotente por media id.
+- Protección contra descargas/subidas duplicadas.
+- Token de Meta documentado como server-only.
+- Check estructural del pipeline.
+
+## TASK 021 — mapa temático / arquitectura visual
+
+Implementada como exploración visual y posteriormente superada por el enfoque de cartografía real del MVP.
+
+La decisión actual es priorizar mapa real y funcional antes de retomar cualquier piel temática avanzada.
+
+## TASK 022 — cartografía OSM real
+
+Implementada la recuperación del mapa real de Puerto Vallarta sobre OpenStreetMap.
+
+## TASK 023 — MapLibre vectorial
+
+Implementada y posteriormente descartada para el MVP por problemas de carga/compatibilidad en el entorno móvil. No forma parte del renderer actual.
+
+## TASK 024 — MVP cartográfico funcional
+
+Implementada:
+
+- Retiro de MapLibre del renderer público.
+- Leaflet como renderer simple y estable.
+- Tiles raster reales de OpenStreetMap.
+- Puerto Vallarta con calles reales.
+- Reportes como puntos sobre coordenadas reales.
+- Filtros por categoría.
+- Tap/click de reporte para ver qué ocurrió.
+- Zoom y regreso a Puerto Vallarta.
+- Límites territoriales conservados.
+- Estilos móviles dedicados para evitar contenedores/mapas en blanco.
+- Check estructural actualizado para la nueva arquitectura.
+
 ## Próxima frontera
 
-### TASK 020 — evidencia real
+Prueba end-to-end controlada del MVP completo: entrada de reporte → persistencia → evidencia → aparición pública en el mapa → selección desde móvil.
 
-Meta media → descarga validada → Supabase Storage privado → report_evidence.
-
-Después de eso: prueba end-to-end controlada y migración progresiva de las lecturas operativas desde JSON local hacia Supabase.
+Después: migración progresiva de las lecturas operativas restantes desde JSON local hacia Supabase y endurecimiento final antes de sumar funcionalidades secundarias.
 
 ## No activar todavía
 
@@ -137,4 +179,4 @@ Después de eso: prueba end-to-end controlada y migración progresiva de las lec
 
 ## Visión de producto
 
-La capa pública evolucionará a un mapa temático ilustrado: geografía neutral e inmutable, con una capa visual intercambiable por municipio/tema. Los reportes ciudadanos permanecerán dinámicos sobre esa base.
+La capa pública podrá evolucionar a un mapa temático ilustrado: geografía neutral e inmutable, con una capa visual intercambiable por municipio/tema. Los reportes ciudadanos permanecerán dinámicos sobre esa base.
