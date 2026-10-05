@@ -1,12 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Map, Marker, setWorkerUrl } from "maplibre-gl";
-import "maplibre-gl/dist/maplibre-gl.css";
-
-// Next.js 16 + Turbopack requires MapLibre's worker and its shared module to be
-// served together from a stable public URL. The prebuild/predev hook prepares them.
-setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const CATEGORY_ICON = {
   bache: "◉",
@@ -45,12 +41,9 @@ const STATUS_LABEL = {
   needs_info: "Requiere información"
 };
 
-// Liberty is the cleaner maintained OpenFreeMap style and keeps the real street
-// network readable at the default city view on mobile and desktop.
-const MAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 const INITIAL_ZOOM = 14;
-const MIN_ZOOM = 12;
-const MAX_ZOOM = 18;
+const MIN_ZOOM = 11;
+const MAX_ZOOM = 19;
 
 function validCoordinate(report) {
   const latitude = Number(report.coordinates?.latitude);
@@ -58,7 +51,7 @@ function validCoordinate(report) {
   return Number.isFinite(latitude) && Number.isFinite(longitude);
 }
 
-function markerPriorityClass(priority) {
+function markerClass(priority) {
   if (priority === "urgent") return "priority-urgent";
   if (priority === "high") return "priority-high";
   return "priority-normal";
@@ -67,7 +60,8 @@ function markerPriorityClass(priority) {
 export default function PublicMap({ data }) {
   const mapContainerRef = useRef(null);
   const mapRef = useRef(null);
-  const markersRef = useRef([]);
+  const tileLayerRef = useRef(null);
+  const markersLayerRef = useRef(null);
   const [selectedId, setSelectedId] = useState(null);
   const [filter, setFilter] = useState("all");
   const [zoom, setZoom] = useState(INITIAL_ZOOM);
@@ -89,99 +83,115 @@ export default function PublicMap({ data }) {
   useEffect(() => {
     if (!mapContainerRef.current || mapRef.current) return undefined;
 
-    const map = new Map({
-      container: mapContainerRef.current,
-      style: MAP_STYLE,
-      center: [data.territory.center.longitude, data.territory.center.latitude],
+    const center = [data.territory.center.latitude, data.territory.center.longitude];
+    const bounds = L.latLngBounds(
+      [data.territory.bounds.south - 0.015, data.territory.bounds.west - 0.015],
+      [data.territory.bounds.north + 0.015, data.territory.bounds.east + 0.015]
+    );
+
+    const map = L.map(mapContainerRef.current, {
+      center,
       zoom: INITIAL_ZOOM,
       minZoom: MIN_ZOOM,
       maxZoom: MAX_ZOOM,
+      maxBounds: bounds,
+      maxBoundsViscosity: 0.85,
+      zoomControl: false,
       attributionControl: true,
-      renderWorldCopies: false,
-      dragRotate: false,
-      pitchWithRotate: false,
-      touchPitch: false,
-      maxBounds: [
-        [data.territory.bounds.west - 0.015, data.territory.bounds.south - 0.015],
-        [data.territory.bounds.east + 0.015, data.territory.bounds.north + 0.015]
-      ]
+      worldCopyJump: false,
+      tap: true
     });
 
     mapRef.current = map;
 
+    const tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: MAX_ZOOM,
+      minZoom: MIN_ZOOM,
+      attribution: "© OpenStreetMap contributors",
+      crossOrigin: true
+    });
+
+    tileLayerRef.current = tileLayer;
+    tileLayer.addTo(map);
+
+    const markersLayer = L.layerGroup().addTo(map);
+    markersLayerRef.current = markersLayer;
+
+    let tileErrors = 0;
+    const handleTileError = () => {
+      tileErrors += 1;
+      if (tileErrors >= 4) setMapError(true);
+    };
+
+    tileLayer.on("tileerror", handleTileError);
+
     const handleLoad = () => {
       setMapReady(true);
-      map.jumpTo({
-        center: [data.territory.center.longitude, data.territory.center.latitude],
-        zoom: INITIAL_ZOOM
-      });
+      setMapError(false);
+      map.invalidateSize();
+      map.setView(center, INITIAL_ZOOM, { animate: false });
       setZoom(INITIAL_ZOOM);
     };
 
     const handleZoom = () => setZoom(Math.round(map.getZoom() * 10) / 10);
-    const handleError = (event) => {
-      if (!map.isStyleLoaded()) setMapError(true);
-      console.error("Public map error", event?.error || event);
-    };
 
     map.on("load", handleLoad);
-    map.on("zoom", handleZoom);
-    map.on("error", handleError);
+    map.on("zoomend", handleZoom);
+
+    // Leaflet can initialize before the mobile browser has finalized layout.
+    // A second invalidateSize prevents the common blank-container case.
+    const resizeTimer = window.setTimeout(() => map.invalidateSize(), 250);
 
     return () => {
+      window.clearTimeout(resizeTimer);
+      tileLayer.off("tileerror", handleTileError);
       map.off("load", handleLoad);
-      map.off("zoom", handleZoom);
-      map.off("error", handleError);
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
+      map.off("zoomend", handleZoom);
       map.remove();
       mapRef.current = null;
+      tileLayerRef.current = null;
+      markersLayerRef.current = null;
     };
   }, [data.territory]);
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || !mapReady) return undefined;
+    const markersLayer = markersLayerRef.current;
+    if (!map || !markersLayer || !mapReady) return undefined;
 
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
+    markersLayer.clearLayers();
 
     visibleReports.filter(validCoordinate).forEach((report) => {
-      const element = document.createElement("button");
-      element.type = "button";
-      element.className = `lch-map-marker ${markerPriorityClass(report.priority)}`;
-      element.setAttribute("aria-label", report.title || "Reporte ciudadano");
-      element.innerHTML = `<span class="lch-marker-pulse"></span><span class="lch-marker-core">${CATEGORY_ICON[report.category] || "•"}</span>`;
-      element.addEventListener("click", () => setSelectedId(report.id));
+      const markerIcon = L.divIcon({
+        className: `lch-leaflet-marker ${markerClass(report.priority)}`,
+        html: `<span class="lch-marker-pulse"></span><span class="lch-marker-core">${CATEGORY_ICON[report.category] || "•"}</span>`,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+      });
 
-      const marker = new Marker({
-        element,
-        anchor: "center",
-        pitchAlignment: "viewport",
-        rotationAlignment: "viewport"
-      })
-        .setLngLat([Number(report.coordinates.longitude), Number(report.coordinates.latitude)])
-        .addTo(map);
+      const marker = L.marker(
+        [Number(report.coordinates.latitude), Number(report.coordinates.longitude)],
+        { icon: markerIcon, keyboard: true, title: report.title || "Reporte ciudadano" }
+      );
 
-      markersRef.current.push(marker);
+      marker.on("click", () => setSelectedId(report.id));
+      marker.addTo(markersLayer);
     });
 
-    return () => {
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-    };
+    return () => markersLayer.clearLayers();
   }, [mapReady, visibleReports]);
 
-  const zoomIn = () => mapRef.current?.zoomIn({ duration: 220 });
-  const zoomOut = () => mapRef.current?.zoomOut({ duration: 220 });
+  const zoomIn = () => mapRef.current?.zoomIn(1, { animate: true });
+  const zoomOut = () => mapRef.current?.zoomOut(1, { animate: true });
+
   const resetView = () => {
     const map = mapRef.current;
     if (!map) return;
-    map.flyTo({
-      center: [data.territory.center.longitude, data.territory.center.latitude],
-      zoom: INITIAL_ZOOM,
-      duration: 450
-    });
+    map.flyTo(
+      [data.territory.center.latitude, data.territory.center.longitude],
+      INITIAL_ZOOM,
+      { duration: 0.45 }
+    );
   };
 
   return (
@@ -203,8 +213,8 @@ export default function PublicMap({ data }) {
         </div>
       </div>
 
-      <div className="game-map real-map real-map-v3">
-        <div ref={mapContainerRef} className="maplibre-container" aria-label="Mapa de calles de Puerto Vallarta" />
+      <div className="game-map real-map real-map-v4">
+        <div ref={mapContainerRef} className="leaflet-map-container" aria-label="Mapa de calles de Puerto Vallarta" />
         <div className="territory-label">PUERTO VALLARTA · TERRITORIO ACTIVO</div>
         <div className="map-compass real-compass"><span>N</span><b>⌃</b></div>
 
@@ -261,7 +271,7 @@ export default function PublicMap({ data }) {
           <span><i className="legend-dot high" /> Atención</span>
           <span><i className="legend-dot urgent" /> Prioridad</span>
         </div>
-        <span className="territory-lock">© OpenFreeMap · © OpenStreetMap contributors · Datos ciudadanos</span>
+        <span className="territory-lock">© OpenStreetMap contributors · Datos ciudadanos</span>
       </div>
     </section>
   );
