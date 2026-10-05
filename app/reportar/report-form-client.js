@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "./leaflet-overrides.css";
+import "../leaflet-overrides.css";
 
 const CATEGORIES = [["bache","Bache"],["basura","Basura"],["fuga-de-agua","Fuga de agua"],["alumbrado","Alumbrado"],["drenaje","Drenaje"],["banqueta-danada","Banqueta dañada"],["calle-peligrosa","Calle peligrosa"],["senalizacion","Señalización"],["arbol-obstruyendo","Árbol obstruyendo"],["ruido-excesivo","Ruido excesivo"],["semaforo-fallando","Semáforo fallando"],["alcantarilla-destapada","Alcantarilla destapada"],["otro","Otro"]];
 
