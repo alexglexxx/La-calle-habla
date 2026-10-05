@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "./leaflet-overrides.css";
 
 const CATEGORY_ICON = {
   bache: "◉",
@@ -138,8 +139,6 @@ export default function PublicMap({ data }) {
     map.on("load", handleLoad);
     map.on("zoomend", handleZoom);
 
-    // Leaflet can initialize before the mobile browser has finalized layout.
-    // A second invalidateSize prevents the common blank-container case.
     const resizeTimer = window.setTimeout(() => map.invalidateSize(), 250);
 
     return () => {
