@@ -1,4 +1,4 @@
-import ReportFormClient from "./report-form-client";
+import ReportFormClient from "./report-form-wrapper";
 
 export const dynamic = "force-dynamic";
 
