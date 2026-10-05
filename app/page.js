@@ -3,8 +3,8 @@ import PublicMap from "./public-map";
 
 export const dynamic = "force-dynamic";
 
-export default function HomePage() {
-  const data = getPublicPortalData();
+export default async function HomePage() {
+  const data = await getPublicPortalData();
 
   return (
     <main className="public-shell">
