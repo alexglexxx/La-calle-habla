@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Map, Marker } from "maplibre-gl";
+import { Map, Marker, setWorkerUrl } from "maplibre-gl";
+import "maplibre-gl/dist/maplibre-gl.css";
 
-// Public cartography uses OpenFreeMap vector tiles with OpenStreetMap data.
-// Attribution is rendered by MapLibre and reinforced in the public footer.
+// Next.js 16 + Turbopack requires MapLibre's worker and its shared module to be
+// served together from a stable public URL. The prebuild/predev hook prepares them.
+setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
 const CATEGORY_ICON = {
   bache: "◉",
