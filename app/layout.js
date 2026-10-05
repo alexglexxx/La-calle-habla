@@ -1,6 +1,5 @@
 import "./globals.css";
 import "./map.css";
-import "maplibre-gl/dist/maplibre-gl.css";
 
 export const metadata = {
   title: "La Calle Habla | Puerto Vallarta",
