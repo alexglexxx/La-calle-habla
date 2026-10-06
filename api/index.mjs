@@ -7,55 +7,88 @@ async function readBody(request) {
     return { ok: true, rawBody: "" };
   }
 
-  const contentLength = Number(request.headers.get("content-length"));
+  const contentLength = Number(request.headers["content-length"]);
 
   if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
     return {
       ok: false,
-      route: Response.json({
-        ok: false,
-        error: "payload_too_large",
-        message: "Request body must be " + MAX_BODY_BYTES + " bytes or fewer."
-      }, { status: 413 })
+      route: {
+        statusCode: 413,
+        headers: { "content-type": "application/json; charset=utf-8" },
+        body: JSON.stringify({
+          ok: false,
+          error: "payload_too_large",
+          message: "Request body must be " + MAX_BODY_BYTES + " bytes or fewer."
+        })
+      }
     };
   }
 
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  const chunks = [];
+  let total = 0;
 
-  if (bytes.byteLength > MAX_BODY_BYTES) {
-    return {
-      ok: false,
-      route: Response.json({
+  for await (const chunk of request) {
+    const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    total += bytes.byteLength;
+
+    if (total > MAX_BODY_BYTES) {
+      return {
         ok: false,
-        error: "payload_too_large",
-        message: "Request body must be " + MAX_BODY_BYTES + " bytes or fewer."
-      }, { status: 413 })
-    };
+        route: {
+          statusCode: 413,
+          headers: { "content-type": "application/json; charset=utf-8" },
+          body: JSON.stringify({
+            ok: false,
+            error: "payload_too_large",
+            message: "Request body must be " + MAX_BODY_BYTES + " bytes or fewer."
+          })
+        }
+      };
+    }
+
+    chunks.push(bytes);
   }
 
-  return { ok: true, rawBody: new TextDecoder().decode(bytes) };
+  return {
+    ok: true,
+    rawBody: Buffer.concat(chunks).toString("utf8")
+  };
 }
 
-function toResponse(route) {
-  return new Response(route.body, { status: route.statusCode, headers: route.headers });
+function writeRoute(response, route) {
+  response.statusCode = route.statusCode;
+  for (const [key, value] of Object.entries(route.headers || {})) {
+    response.setHeader(key, value);
+  }
+  response.end(route.body ?? "");
 }
 
-export default async function handler(request) {
+export default async function handler(request, response) {
   try {
     const body = await readBody(request);
-    if (!body.ok) return body.route;
 
-    const route = await resolveRoute(request.method, request.url, {
-      rawBody: body.rawBody,
-      headers: Object.fromEntries(request.headers.entries())
-    });
+    if (!body.ok) {
+      writeRoute(response, body.route);
+      return;
+    }
 
-    return toResponse(route);
+    const route = await resolveRoute(
+      request.method,
+      request.url,
+      {
+        rawBody: body.rawBody,
+        headers: request.headers
+      }
+    );
+
+    writeRoute(response, route);
   } catch (error) {
-    return Response.json({
+    response.statusCode = 500;
+    response.setHeader("content-type", "application/json; charset=utf-8");
+    response.end(JSON.stringify({
       ok: false,
       error: "internal_server_error",
       message: error instanceof Error ? error.message : "Unexpected server error."
-    }, { status: 500 });
+    }));
   }
 }
