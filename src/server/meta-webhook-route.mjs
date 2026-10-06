@@ -6,6 +6,7 @@ import {
   verifyMetaChallenge,
   verifyMetaSignature
 } from "../integrations/whatsapp/meta-webhook.mjs";
+import { sendMetaWhatsAppReply } from "../integrations/whatsapp/meta-sender.mjs";
 import { handleIncomingCitizenMessage } from "../services/report-intake-service.mjs";
 import { persistReportCreated } from "../services/supabase-persistence.mjs";
 import { persistWhatsAppEvidence } from "../services/whatsapp-evidence-service.mjs";
@@ -24,6 +25,33 @@ function json(statusCode, body) {
     },
     body: JSON.stringify(body)
   };
+}
+
+function getMetaAccessToken() {
+  const token = String(process.env.META_ACCESS_TOKEN || "").trim();
+  if (!token) throw new Error("META_ACCESS_TOKEN is required for WhatsApp replies.");
+  return token;
+}
+
+async function sendReply({ phoneNumberId, message, reply }) {
+  if (!reply?.text) return { ok: true, skipped: true, reason: "no_reply" };
+
+  try {
+    const sent = await sendMetaWhatsAppReply({
+      phoneNumberId,
+      accessToken: getMetaAccessToken(),
+      to: message.senderReference,
+      reply
+    });
+
+    return { ok: true, sent: true, messageId: sent.messageId };
+  } catch (error) {
+    return {
+      ok: false,
+      sent: false,
+      error: error instanceof Error ? error.message : "WhatsApp reply failed."
+    };
+  }
 }
 
 export async function resolveMetaWebhook(method, requestUrl, options = {}) {
@@ -89,7 +117,7 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
         duplicate: false,
         reportId: null,
         persistence: false,
-        error: claim.error
+        reply: { ok: false, sent: false, error: claim.error }
       });
       continue;
     }
@@ -101,7 +129,8 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
         duplicate: true,
         reportId: claim.reportId || null,
         persistence: true,
-        state: claim.state
+        state: claim.state,
+        reply: { ok: true, skipped: true, reason: "duplicate" }
       });
       continue;
     }
@@ -123,6 +152,12 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
         }
       }
 
+      const reply = await sendReply({
+        phoneNumberId,
+        message,
+        reply: result.reply
+      });
+
       await completeProcessedMessage(message.messageId, {
         reportId: result.report?.id || null,
         status: result.ok ? "processed" : "rejected",
@@ -130,7 +165,8 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
           result: result.error || null,
           duplicate: Boolean(result.duplicate),
           rateLimited: Boolean(result.rateLimited),
-          locationRejected: Boolean(result.locationRejected)
+          locationRejected: Boolean(result.locationRejected),
+          replySent: Boolean(reply.sent)
         }
       });
 
@@ -139,7 +175,8 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
         ok: result.ok,
         duplicate: Boolean(result.duplicate),
         reportId: result.report?.id || null,
-        persistence: persistence.ok
+        persistence: persistence.ok,
+        reply
       });
     } catch (error) {
       await failProcessedMessage(
@@ -153,6 +190,7 @@ export async function resolveMetaWebhook(method, requestUrl, options = {}) {
         duplicate: false,
         reportId: null,
         persistence: false,
+        reply: { ok: false, sent: false },
         error: "processing_failed"
       });
     }
